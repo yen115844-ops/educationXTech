@@ -1,14 +1,13 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import Pagination from '@/components/ui/Pagination';
+import { useAuth } from '@/context/AuthContext';
+import { apiGet } from '@/lib/api';
+import type { Course, Post } from '@/types';
+import { Search } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { apiGet } from '@/lib/api';
-import { useAuth } from '@/context/AuthContext';
-import Pagination from '@/components/ui/Pagination';
-import { Search } from 'lucide-react';
-import type { Post } from '@/types';
-import type { Course } from '@/types';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 
 function formatDate(s: string) {
   return new Date(s).toLocaleDateString('vi-VN');
@@ -21,6 +20,14 @@ const TYPE_OPTIONS = [
 ];
 
 export default function CommunityPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-4xl px-3 py-6"><div className="space-y-4">{[1,2,3,4].map(i=><div key={i} className="h-28 animate-pulse rounded-xl bg-zinc-200 dark:bg-zinc-800"/>)}</div></div>}>
+      <CommunityContent />
+    </Suspense>
+  );
+}
+
+function CommunityContent() {
   const searchParams = useSearchParams();
   const courseIdFromUrl = useMemo(() => searchParams.get('courseId') || '', [searchParams]);
   const { user } = useAuth();

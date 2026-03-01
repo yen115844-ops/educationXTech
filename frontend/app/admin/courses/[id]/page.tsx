@@ -20,7 +20,7 @@ export default function AdminCourseContentPage() {
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [lessonForm, setLessonForm] = useState({ title: '', order: 0, content: '', videoUrl: '', duration: 0 });
-  const [exerciseForm, setExerciseForm] = useState({ title: '', type: 'quiz' as const, lessonId: '' });
+  const [exerciseForm, setExerciseForm] = useState({ title: '', type: 'quiz' as Exercise['type'], lessonId: '' });
   const [saving, setSaving] = useState(false);
   const [deletingLessonId, setDeletingLessonId] = useState<string | null>(null);
   const [deletingExerciseId, setDeletingExerciseId] = useState<string | null>(null);
