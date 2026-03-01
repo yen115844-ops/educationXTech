@@ -1,9 +1,9 @@
 'use client';
 
+import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -72,6 +72,11 @@ export default function LoginPage() {
           {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
         </button>
       </form>
+      <div className="mt-3 text-right">
+        <Link href="/forgot-password" className="text-sm font-medium text-emerald-600 hover:underline dark:text-emerald-400">
+          Quên mật khẩu?
+        </Link>
+      </div>
       <p className="mt-4 text-center text-sm text-zinc-600 dark:text-zinc-400">
         Chưa có tài khoản?{' '}
         <Link href="/register" className="font-medium text-emerald-600 hover:underline dark:text-emerald-400">
