@@ -1,5 +1,6 @@
 'use client';
 
+import ThemeToggle from '@/components/ThemeToggle';
 import { useAuth } from '@/context/AuthContext';
 import { ChevronDown, CreditCard, GraduationCap, LayoutDashboard, LogOut, Menu, User, X } from 'lucide-react';
 import Link from 'next/link';
@@ -43,6 +44,8 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <ThemeToggle />
+
           {loading ? (
             <span className="text-xs text-zinc-500 sm:text-sm">Đang tải...</span>
           ) : user ? (
