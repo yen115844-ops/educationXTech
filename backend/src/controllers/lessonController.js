@@ -1,5 +1,6 @@
 const Lesson = require('../models/Lesson');
 const Course = require('../models/Course');
+const Enrollment = require('../models/Enrollment');
 
 const listByCourse = async (req, res) => {
   try {
@@ -31,6 +32,31 @@ const getById = async (req, res) => {
     if (!course.isPublished && req.user?.role !== 'admin' && req.user?._id?.toString() !== course.instructorId?.toString()) {
       return res.error('Không có quyền xem', 404, 'NOT_FOUND');
     }
+
+    if (req.user?.role === 'student') {
+      const enrollment = await Enrollment.findOne({
+        userId: req.user._id,
+        courseId: course._id,
+      }).select('completedLessons');
+      if (!enrollment) {
+        return res.error('Bạn chưa đăng ký khóa học này', 403, 'FORBIDDEN');
+      }
+
+      const allLessons = await Lesson.find({ courseId: course._id })
+        .sort({ order: 1, createdAt: 1 })
+        .select('_id');
+      const currentIndex = allLessons.findIndex((item) => item._id.toString() === lesson._id.toString());
+      if (currentIndex > 0) {
+        const completedSet = new Set((enrollment.completedLessons || []).map((id) => id.toString()));
+        const prevNotCompleted = allLessons
+          .slice(0, currentIndex)
+          .find((item) => !completedSet.has(item._id.toString()));
+        if (prevNotCompleted) {
+          return res.error('Bạn cần hoàn thành các bài học trước đó', 403, 'LESSON_LOCKED');
+        }
+      }
+    }
+
     res.success({ lesson });
   } catch (err) {
     res.error(err.message, 500, 'SERVER_ERROR');

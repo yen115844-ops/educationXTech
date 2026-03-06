@@ -46,6 +46,12 @@ export interface Enrollment {
   courseId: Course;
   progress: number;
   completedLessons: string[];
+  lessonWatchStats?: Array<{
+    lessonId: string;
+    watchedSeconds: number;
+    durationSeconds: number;
+    completedAt?: string | null;
+  }>;
 }
 
 export interface Payment {

@@ -1,6 +1,7 @@
-import Link from 'next/link';
-import { BookOpen } from 'lucide-react';
+import { toMediaUrl } from '@/lib/media';
 import type { Course } from '@/types';
+import { BookOpen } from 'lucide-react';
+import Link from 'next/link';
 
 function formatPrice(n: number) {
   if (n === 0) return 'Miễn phí';
@@ -30,7 +31,7 @@ export default function CourseCard({
         )}
         {course.thumbnail ? (
           <img
-            src={course.thumbnail}
+            src={toMediaUrl(course.thumbnail)}
             alt=""
             className="h-full w-full object-cover"
           />

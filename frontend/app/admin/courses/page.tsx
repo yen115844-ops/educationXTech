@@ -4,6 +4,7 @@ import IconButton from '@/components/ui/IconButton';
 import Pagination from '@/components/ui/Pagination';
 import { useAuth } from '@/context/AuthContext';
 import { apiDelete, apiGet, apiPatch, apiPost, apiUpload } from '@/lib/api';
+import { toMediaUrl } from '@/lib/media';
 import type { Course } from '@/types';
 import { BookOpen, ExternalLink, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import Link from 'next/link';
@@ -374,7 +375,7 @@ export default function AdminCoursesPage() {
                 />
                 {editForm.thumbnail && (
                   <div className="mt-2 aspect-video max-w-xs overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800">
-                    <img src={editForm.thumbnail} alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    <img src={toMediaUrl(editForm.thumbnail)} alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   </div>
                 )}
               </div>
@@ -472,7 +473,7 @@ export default function AdminCoursesPage() {
                 />
                 {createForm.thumbnail && (
                   <div className="mt-2 aspect-video max-w-xs overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800">
-                    <img src={createForm.thumbnail} alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    <img src={toMediaUrl(createForm.thumbnail)} alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   </div>
                 )}
               </div>

@@ -1,5 +1,6 @@
 const Exercise = require('../models/Exercise');
 const Course = require('../models/Course');
+const Enrollment = require('../models/Enrollment');
 
 const listByCourse = async (req, res) => {
   try {
@@ -33,6 +34,24 @@ const getById = async (req, res) => {
     if (!course.isPublished && req.user?.role !== 'admin' && req.user?._id?.toString() !== course.instructorId?.toString()) {
       return res.error('Không có quyền xem', 404, 'NOT_FOUND');
     }
+
+    if (req.user?.role === 'student') {
+      const enrollment = await Enrollment.findOne({
+        userId: req.user._id,
+        courseId: course._id,
+      }).select('completedLessons');
+      if (!enrollment) {
+        return res.error('Bạn chưa đăng ký khóa học này', 403, 'FORBIDDEN');
+      }
+
+      if (exercise.lessonId) {
+        const completedSet = new Set((enrollment.completedLessons || []).map((id) => id.toString()));
+        if (!completedSet.has(exercise.lessonId._id.toString())) {
+          return res.error('Bạn cần hoàn thành video bài học trước khi làm bài tập này', 403, 'LESSON_NOT_COMPLETED');
+        }
+      }
+    }
+
     res.success({ exercise });
   } catch (err) {
     res.error(err.message, 500, 'SERVER_ERROR');

@@ -28,6 +28,13 @@ const submit = async (req, res) => {
       return res.error('Bạn chưa đăng ký khóa học này', 403, 'FORBIDDEN');
     }
 
+    if (req.user.role === 'student' && exercise.lessonId) {
+      const completedSet = new Set((enrollment?.completedLessons || []).map((id) => id.toString()));
+      if (!completedSet.has(exercise.lessonId.toString())) {
+        return res.error('Bạn cần hoàn thành video bài học trước khi nộp bài tập này', 403, 'LESSON_NOT_COMPLETED');
+      }
+    }
+
     // Kiểm tra đã nộp chưa (cho phép nộp lại)
     let submission = await Submission.findOne({
       userId: req.user._id,

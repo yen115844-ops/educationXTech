@@ -87,6 +87,7 @@ Base URL: `http://localhost:5000`
 | | POST | /api/enrollments/:courseId | Đăng ký khóa (student) |
 | | GET | /api/enrollments/:courseId | Chi tiết đăng ký |
 | | PATCH | /api/enrollments/:courseId/progress | Cập nhật tiến độ (lessonId) |
+| | PATCH | /api/enrollments/:courseId/lessons/:lessonId/watch | Cập nhật thời gian xem video |
 | **Lessons** | GET | /api/lessons/course/:courseId | Danh sách bài học |
 | | GET | /api/lessons/:id | Chi tiết bài học |
 | | POST | /api/lessons/course/:courseId | Tạo bài học (instructor/admin) |
@@ -111,6 +112,8 @@ Base URL: `http://localhost:5000`
 | | POST | /api/comments/post/:postId | Thêm comment (auth) |
 | | DELETE | /api/comments/:id | Xóa comment |
 | **Chatbot** | POST | /api/chatbot/chat | Gửi message, nhận reply (body: message, sessionId?) |
+| **Upload** | POST | /api/upload/thumbnail | Upload ảnh thumbnail (instructor/admin) |
+| | POST | /api/upload/video | Upload video bài học (instructor/admin) |
 
 ## Auth
 

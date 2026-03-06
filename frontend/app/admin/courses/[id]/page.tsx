@@ -1,7 +1,8 @@
 'use client';
 
 import IconButton from '@/components/ui/IconButton';
-import { apiDelete, apiGet, apiPatch, apiPost } from '@/lib/api';
+import { apiDelete, apiGet, apiPatch, apiPost, apiUpload } from '@/lib/api';
+import { toMediaUrl } from '@/lib/media';
 import type { Course, Exercise, Lesson } from '@/types';
 import { ChevronLeft, ClipboardList, Eye, FileText, GraduationCap, Pencil, Plus, Trash2 } from 'lucide-react';
 import Link from 'next/link';
@@ -22,6 +23,8 @@ export default function AdminCourseContentPage() {
   const [lessonForm, setLessonForm] = useState({ title: '', order: 0, content: '', videoUrl: '', duration: 0 });
   const [exerciseForm, setExerciseForm] = useState({ title: '', type: 'quiz' as Exercise['type'], lessonId: '' });
   const [saving, setSaving] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [lessonFormError, setLessonFormError] = useState('');
   const [deletingLessonId, setDeletingLessonId] = useState<string | null>(null);
   const [deletingExerciseId, setDeletingExerciseId] = useState<string | null>(null);
 
@@ -41,6 +44,7 @@ export default function AdminCourseContentPage() {
 
   const openAddLesson = () => {
     setEditingLesson(null);
+    setLessonFormError('');
     setLessonForm({
       title: '',
       order: lessons.length,
@@ -53,6 +57,7 @@ export default function AdminCourseContentPage() {
 
   const openEditLesson = (l: Lesson) => {
     setEditingLesson(l);
+    setLessonFormError('');
     setLessonForm({
       title: l.title,
       order: l.order ?? 0,
@@ -63,8 +68,27 @@ export default function AdminCourseContentPage() {
     setShowLessonModal(true);
   };
 
+  const handleVideoUpload = async (file: File) => {
+    if (!file.type.startsWith('video/')) {
+      setLessonFormError('Vui lòng chọn file video hợp lệ.');
+      return;
+    }
+    setLessonFormError('');
+    setUploadingVideo(true);
+    const formData = new FormData();
+    formData.append('video', file);
+    const res = await apiUpload<{ url: string; filename?: string }>('/api/upload/video', formData);
+    setUploadingVideo(false);
+    if (res.success && res.data?.url) {
+      setLessonForm((prev) => ({ ...prev, videoUrl: res.data!.url }));
+      return;
+    }
+    setLessonFormError(res.message || 'Upload video thất bại.');
+  };
+
   const saveLesson = async () => {
     if (!lessonForm.title.trim()) return;
+    setLessonFormError('');
     setSaving(true);
     if (editingLesson) {
       const res = await apiPatch<{ lesson: Lesson }>(`/api/lessons/${editingLesson._id}`, {
@@ -78,6 +102,8 @@ export default function AdminCourseContentPage() {
       if (res.success && res.data?.lesson) {
         setLessons((prev) => prev.map((x) => (x._id === editingLesson._id ? res.data!.lesson! : x)));
         setShowLessonModal(false);
+      } else {
+        setLessonFormError(res.message || 'Lưu bài học thất bại.');
       }
     } else {
       const res = await apiPost<{ lesson: Lesson }>(`/api/lessons/course/${id}`, {
@@ -91,6 +117,8 @@ export default function AdminCourseContentPage() {
       if (res.success && res.data?.lesson) {
         setLessons((prev) => [...prev, res.data!.lesson!].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
         setShowLessonModal(false);
+      } else {
+        setLessonFormError(res.message || 'Tạo bài học thất bại.');
       }
     }
   };
@@ -295,10 +323,15 @@ export default function AdminCourseContentPage() {
       {/* Lesson modal */}
       {showLessonModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-xl bg-white p-4 dark:bg-zinc-900 sm:p-6">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-4 dark:bg-zinc-900 sm:p-6">
             <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
               {editingLesson ? 'Sửa bài học' : 'Thêm bài học'}
             </h3>
+            {lessonFormError && (
+              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+                {lessonFormError}
+              </div>
+            )}
             <div className="mt-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Tiêu đề</label>
@@ -317,15 +350,41 @@ export default function AdminCourseContentPage() {
               <div>
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">URL video (tùy chọn)</label>
                 <input type="url" value={lessonForm.videoUrl} onChange={(e) => setLessonForm((f) => ({ ...f, videoUrl: e.target.value }))} placeholder="https://..." className="mt-1 w-full rounded-lg border border-zinc-300 px-4 py-2 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100" />
+                <div className="mt-2 flex items-center gap-2">
+                  <label className="inline-flex cursor-pointer items-center rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800">
+                    <input
+                      type="file"
+                      accept="video/mp4,video/webm,video/ogg,video/quicktime,video/x-m4v,video/x-msvideo"
+                      className="hidden"
+                      disabled={uploadingVideo}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleVideoUpload(file);
+                        e.currentTarget.value = '';
+                      }}
+                    />
+                    {uploadingVideo ? 'Đang upload video...' : 'Upload video từ máy'}
+                  </label>
+                  {lessonForm.videoUrl && (
+                    <span className="text-xs text-emerald-600 dark:text-emerald-400">Đã có video</span>
+                  )}
+                </div>
+                {lessonForm.videoUrl && (
+                  <video
+                    src={toMediaUrl(lessonForm.videoUrl)}
+                    controls
+                    className="mt-3 aspect-video w-full rounded-lg border border-zinc-200 bg-black dark:border-zinc-700"
+                  />
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Nội dung (tùy chọn)</label>
-                <textarea value={lessonForm.content} onChange={(e) => setLessonForm((f) => ({ ...f, content: e.target.value }))} rows={3} className="mt-1 w-full rounded-lg border border-zinc-300 px-4 py-2 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100" />
+                <textarea value={lessonForm.content} onChange={(e) => setLessonForm((f) => ({ ...f, content: e.target.value }))} rows={6} className="mt-1 max-h-72 w-full resize-y overflow-y-auto rounded-lg border border-zinc-300 px-4 py-2 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100" />
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-2">
               <button type="button" onClick={() => setShowLessonModal(false)} className="rounded-lg border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-600">Hủy</button>
-              <button type="button" onClick={saveLesson} disabled={saving || !lessonForm.title.trim()} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50 dark:bg-emerald-500">{saving ? 'Đang lưu...' : 'Lưu'}</button>
+              <button type="button" onClick={saveLesson} disabled={saving || uploadingVideo || !lessonForm.title.trim()} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50 dark:bg-emerald-500">{saving ? 'Đang lưu...' : 'Lưu'}</button>
             </div>
           </div>
         </div>
@@ -334,7 +393,7 @@ export default function AdminCourseContentPage() {
       {/* Exercise modal */}
       {showExerciseModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-xl bg-white p-4 dark:bg-zinc-900 sm:p-6">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-4 dark:bg-zinc-900 sm:p-6">
             <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
               {editingExercise ? 'Sửa bài tập' : 'Thêm bài tập'}
             </h3>

@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/context/AuthContext';
 import { apiGet, apiPatch } from '@/lib/api';
+import { toMediaUrl } from '@/lib/media';
 import type { Course, Enrollment, Exercise, Lesson, Submission } from '@/types';
 import {
     BookOpen,
@@ -11,11 +12,29 @@ import {
     Clock,
     FileText,
     ListOrdered,
+    Lock,
     PlayCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+declare global {
+  interface Window {
+    YT?: {
+      Player: new (id: string, config: Record<string, unknown>) => {
+        destroy: () => void;
+        getCurrentTime: () => number;
+        getDuration: () => number;
+        seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+      };
+      PlayerState: {
+        ENDED: number;
+      };
+    };
+    onYouTubeIframeAPIReady?: () => void;
+  }
+}
 
 function getYouTubeEmbedUrl(url: string): string | null {
   if (!url || !url.trim()) return null;
@@ -34,6 +53,18 @@ function isEmbeddableUrl(url: string): boolean {
   );
 }
 
+function isNativeVideoUrl(url: string): boolean {
+  const u = url.trim().toLowerCase();
+  return u.endsWith('.mp4') || u.endsWith('.webm') || u.endsWith('.ogg') || u.includes('.mp4?') || u.includes('.webm?') || u.includes('.ogg?');
+}
+
+function getYouTubeVideoId(url: string): string | null {
+  if (!url || !url.trim()) return null;
+  const u = url.trim();
+  const m = u.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
 export default function LessonPage() {
   const params = useParams();
   const id = params.id as string;
@@ -46,7 +77,16 @@ export default function LessonPage() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [marking, setMarking] = useState(false);
+  const [videoDuration, setVideoDuration] = useState(0);
+  const maxWatchedRef = useRef(0);
+  const lastReportedRef = useRef(0);
+  const youtubePlayerRef = useRef<{
+    destroy: () => void;
+    getCurrentTime: () => number;
+    getDuration: () => number;
+    seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+  } | null>(null);
+  const youtubeTickRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -68,34 +108,156 @@ export default function LessonPage() {
     });
   }, [id, lessonId, user]);
 
-  useEffect(() => {
-    if (!user || !lesson || !enrollment) return;
-    apiPatch<{ enrollment: Enrollment }>(`/api/enrollments/${id}/progress`, { lessonId }).then(
-      (res) => {
-        if (res.success && res.data?.enrollment) setEnrollment(res.data.enrollment);
-      }
-    ).catch(() => {});
-  }, [id, lessonId, user, lesson, enrollment]);
-
   const currentIndex = lessons.findIndex((l) => l._id === lessonId);
   const prevLesson = currentIndex > 0 ? lessons[currentIndex - 1] : null;
   const nextLesson = currentIndex >= 0 && currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null;
   const completedSet = new Set(enrollment?.completedLessons || []);
   const isCompleted = lessonId && completedSet.has(lessonId);
+  const watchStat = useMemo(
+    () => enrollment?.lessonWatchStats?.find((item) => item.lessonId === lessonId),
+    [enrollment, lessonId]
+  );
 
-  const handleMarkComplete = async () => {
-    if (!lessonId || marking) return;
-    setMarking(true);
-    const res = await apiPatch<{ enrollment: Enrollment }>(`/api/enrollments/${id}/progress`, {
-      lessonId,
-    });
-    if (res.success && res.data?.enrollment) setEnrollment(res.data.enrollment);
-    setMarking(false);
+  const normalizedVideoUrl = lesson?.videoUrl ? toMediaUrl(lesson.videoUrl) : '';
+  const videoEmbedUrl =
+    normalizedVideoUrl &&
+    (isEmbeddableUrl(normalizedVideoUrl)
+      ? getYouTubeEmbedUrl(normalizedVideoUrl) || normalizedVideoUrl
+      : normalizedVideoUrl);
+  const useNativeVideo = !!(normalizedVideoUrl && isNativeVideoUrl(normalizedVideoUrl));
+  const youtubeVideoId = normalizedVideoUrl ? getYouTubeVideoId(normalizedVideoUrl) : null;
+  const useYoutubePlayer = !!youtubeVideoId && !useNativeVideo;
+
+  useEffect(() => {
+    maxWatchedRef.current = watchStat?.watchedSeconds || 0;
+    lastReportedRef.current = watchStat?.watchedSeconds || 0;
+  }, [watchStat?.watchedSeconds, lessonId]);
+
+  const reportWatch = useCallback(async (watchedSeconds: number, durationSeconds: number) => {
+    const res = await apiPatch<{ enrollment: Enrollment }>(
+      `/api/enrollments/${id}/lessons/${lessonId}/watch`,
+      {
+        watchedSeconds,
+        durationSeconds,
+      }
+    );
+    if (res.success && res.data?.enrollment) {
+      setEnrollment(res.data.enrollment);
+    }
+  }, [id, lessonId]);
+
+  const handleVideoLoadedMetadata = (duration: number) => {
+    const safeDuration = Number.isFinite(duration) ? Math.max(0, duration) : 0;
+    setVideoDuration(safeDuration);
   };
 
-  const videoEmbedUrl =
-    lesson?.videoUrl &&
-    (isEmbeddableUrl(lesson.videoUrl) ? getYouTubeEmbedUrl(lesson.videoUrl) || lesson.videoUrl : lesson.videoUrl);
+  const handleVideoTimeUpdate = (currentTime: number, duration: number) => {
+    const safeCurrent = Number.isFinite(currentTime) ? Math.max(0, currentTime) : 0;
+    const safeDuration = Number.isFinite(duration) ? Math.max(0, duration) : 0;
+    if (safeCurrent > maxWatchedRef.current) {
+      maxWatchedRef.current = safeCurrent;
+    }
+    if (maxWatchedRef.current - lastReportedRef.current >= 5) {
+      lastReportedRef.current = maxWatchedRef.current;
+      reportWatch(maxWatchedRef.current, safeDuration || videoDuration).catch(() => {});
+    }
+  };
+
+  const handleVideoEnded = useCallback(() => {
+    const finalDuration = videoDuration > 0 ? videoDuration : maxWatchedRef.current;
+    maxWatchedRef.current = Math.max(maxWatchedRef.current, finalDuration);
+    lastReportedRef.current = maxWatchedRef.current;
+    reportWatch(maxWatchedRef.current, finalDuration).catch(() => {});
+  }, [reportWatch, videoDuration]);
+
+  const handleVideoSeeking = (videoEl: HTMLVideoElement) => {
+    if (videoEl.currentTime > maxWatchedRef.current + 1) {
+      videoEl.currentTime = maxWatchedRef.current;
+    }
+  };
+
+  useEffect(() => {
+    if (!useYoutubePlayer || !youtubeVideoId) return;
+
+    const playerElementId = `lesson-youtube-player-${lessonId}`;
+
+    const setupTick = () => {
+      if (youtubeTickRef.current) {
+        window.clearInterval(youtubeTickRef.current);
+      }
+      youtubeTickRef.current = window.setInterval(() => {
+        const player = youtubePlayerRef.current;
+        if (!player) return;
+        const current = Number(player.getCurrentTime() || 0);
+        const duration = Number(player.getDuration() || 0);
+        if (duration > 0 && videoDuration === 0) {
+          setVideoDuration(duration);
+        }
+        if (current > maxWatchedRef.current + 1) {
+          player.seekTo(maxWatchedRef.current, true);
+          return;
+        }
+        if (current > maxWatchedRef.current) {
+          maxWatchedRef.current = current;
+        }
+        if (maxWatchedRef.current - lastReportedRef.current >= 5) {
+          lastReportedRef.current = maxWatchedRef.current;
+          reportWatch(maxWatchedRef.current, duration || videoDuration).catch(() => {});
+        }
+      }, 1000);
+    };
+
+    const initPlayer = () => {
+      if (!window.YT?.Player) return;
+      youtubePlayerRef.current?.destroy();
+      youtubePlayerRef.current = new window.YT.Player(playerElementId, {
+        videoId: youtubeVideoId,
+        playerVars: {
+          rel: 0,
+          controls: 1,
+          modestbranding: 1,
+          disablekb: 1,
+        },
+        events: {
+          onReady: () => {
+            setupTick();
+          },
+          onStateChange: (event: { data: number }) => {
+            if (window.YT?.PlayerState && event.data === window.YT.PlayerState.ENDED) {
+              handleVideoEnded();
+            }
+          },
+        },
+      });
+    };
+
+    const loadYoutubeApi = () => {
+      if (window.YT?.Player) {
+        initPlayer();
+        return;
+      }
+      const existing = document.querySelector('script[src="https://www.youtube.com/iframe_api"]');
+      if (!existing) {
+        const script = document.createElement('script');
+        script.src = 'https://www.youtube.com/iframe_api';
+        document.body.appendChild(script);
+      }
+      window.onYouTubeIframeAPIReady = () => {
+        initPlayer();
+      };
+    };
+
+    loadYoutubeApi();
+
+    return () => {
+      if (youtubeTickRef.current) {
+        window.clearInterval(youtubeTickRef.current);
+        youtubeTickRef.current = null;
+      }
+      youtubePlayerRef.current?.destroy();
+      youtubePlayerRef.current = null;
+    };
+  }, [handleVideoEnded, lessonId, reportWatch, useYoutubePlayer, youtubeVideoId, videoDuration]);
 
   if (!user) {
     return (
@@ -195,14 +357,9 @@ export default function LessonPage() {
                       Đã hoàn thành
                     </span>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={handleMarkComplete}
-                      disabled={marking}
-                      className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-                    >
-                      {marking ? 'Đang lưu...' : 'Đánh dấu đã học xong'}
-                    </button>
+                    <span className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                      Cần xem gần hết video để hoàn thành
+                    </span>
                   )}
                 </div>
               )}
@@ -212,14 +369,39 @@ export default function LessonPage() {
             {hasVideo && (
               <div className="border-b border-zinc-200 dark:border-zinc-700">
                 <div className="aspect-video bg-zinc-900">
-                  <iframe
-                    src={videoEmbedUrl}
-                    title={lesson.title}
-                    className="h-full w-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
+                  {useNativeVideo && normalizedVideoUrl ? (
+                    <video
+                      src={normalizedVideoUrl}
+                      controls
+                      className="h-full w-full"
+                      controlsList="nodownload noplaybackrate"
+                      onLoadedMetadata={(e) => handleVideoLoadedMetadata(e.currentTarget.duration)}
+                      onTimeUpdate={(e) =>
+                        handleVideoTimeUpdate(
+                          e.currentTarget.currentTime,
+                          e.currentTarget.duration
+                        )
+                      }
+                      onEnded={handleVideoEnded}
+                      onSeeking={(e) => handleVideoSeeking(e.currentTarget)}
+                    />
+                  ) : useYoutubePlayer ? (
+                    <div id={`lesson-youtube-player-${lessonId}`} className="h-full w-full" />
+                  ) : (
+                    <iframe
+                      src={videoEmbedUrl}
+                      title={lesson.title}
+                      className="h-full w-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  )}
                 </div>
+                {!useNativeVideo && !useYoutubePlayer && (
+                  <div className="border-t border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                    Link video hiện không phải định dạng video trực tiếp (.mp4/.webm/.ogg), nên hệ thống không thể chặn tua chính xác.
+                  </div>
+                )}
               </div>
             )}
 
@@ -238,7 +420,7 @@ export default function LessonPage() {
                     Bài học này chưa có nội dung chi tiết.
                   </p>
                   <p className="mt-1 text-center text-sm text-zinc-500 dark:text-zinc-400">
-                    Bạn vẫn có thể đánh dấu đã học xong ở trên.
+                    Bài học sẽ tự hoàn thành khi bạn xem gần hết video.
                   </p>
                 </div>
               ) : null}
@@ -259,31 +441,47 @@ export default function LessonPage() {
                 </div>
                 <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
                   {lessonExercises.map((ex) => {
-                    const sub = submissions.find((s) => s.exerciseId === ex._id);
+                    const sub = submissions.find((s) => {
+                      const exerciseId = typeof s.exerciseId === 'object' ? s.exerciseId._id : s.exerciseId;
+                      return exerciseId === ex._id;
+                    });
+                    const canOpenExercise = isCompleted;
                     return (
                       <li key={ex._id}>
-                        <Link
-                          href={`/courses/${id}/exercise/${ex._id}`}
-                          className="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-zinc-900 dark:text-zinc-100">{ex.title}</p>
-                            <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
-                              {ex.type === 'quiz'
-                                ? `Trắc nghiệm · ${ex.questions?.length || 0} câu hỏi`
-                                : 'Tự luận'}
-                            </p>
+                        {canOpenExercise ? (
+                          <Link
+                            href={`/courses/${id}/exercise/${ex._id}`}
+                            className="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-zinc-900 dark:text-zinc-100">{ex.title}</p>
+                              <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+                                {ex.type === 'quiz'
+                                  ? `Trắc nghiệm · ${ex.questions?.length || 0} câu hỏi`
+                                  : 'Tự luận'}
+                              </p>
+                            </div>
+                            {sub ? (
+                              <span className="shrink-0 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                                {sub.score}/{sub.totalPoints} ({sub.percentage}%)
+                              </span>
+                            ) : (
+                              <span className="shrink-0 rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                                Chưa làm
+                              </span>
+                            )}
+                          </Link>
+                        ) : (
+                          <div className="flex items-center justify-between gap-4 px-5 py-4 text-zinc-400 dark:text-zinc-500">
+                            <div className="min-w-0 flex-1">
+                              <p className="inline-flex items-center gap-1.5 font-medium">
+                                <Lock className="h-3.5 w-3.5" />
+                                {ex.title}
+                              </p>
+                              <p className="mt-0.5 text-sm">Hoàn thành video để mở bài tập</p>
+                            </div>
                           </div>
-                          {sub ? (
-                            <span className="shrink-0 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-                              {sub.score}/{sub.totalPoints} ({sub.percentage}%)
-                            </span>
-                          ) : (
-                            <span className="shrink-0 rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                              Chưa làm
-                            </span>
-                          )}
-                        </Link>
+                        )}
                       </li>
                     );
                   })}
@@ -306,13 +504,20 @@ export default function LessonPage() {
               <div />
             )}
             {nextLesson ? (
-              <Link
-                href={`/courses/${id}/lesson/${nextLesson._id}`}
-                className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 sm:ml-auto"
-              >
-                <span className="truncate">Bài tiếp: {nextLesson.title}</span>
-                <ChevronRight className="h-5 w-5 shrink-0" aria-hidden />
-              </Link>
+              isCompleted ? (
+                <Link
+                  href={`/courses/${id}/lesson/${nextLesson._id}`}
+                  className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 sm:ml-auto"
+                >
+                  <span className="truncate">Bài tiếp: {nextLesson.title}</span>
+                  <ChevronRight className="h-5 w-5 shrink-0" aria-hidden />
+                </Link>
+              ) : (
+                <span className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 sm:ml-auto">
+                  <Lock className="h-4 w-4" />
+                  Hoàn thành video để mở bài tiếp theo
+                </span>
+              )
             ) : (
               <Link
                 href={`/courses/${id}/learn`}

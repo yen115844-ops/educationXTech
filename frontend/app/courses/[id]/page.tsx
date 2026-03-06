@@ -2,17 +2,18 @@
 
 import { useAuth } from '@/context/AuthContext';
 import { apiGet, apiPost } from '@/lib/api';
+import { toMediaUrl } from '@/lib/media';
 import type { Course, Enrollment, Exercise, Lesson, Post } from '@/types';
 import {
-    BookOpen,
-    ChevronRight,
-    Clock,
-    FileText,
-    GraduationCap,
-    ListOrdered,
-    MessageSquare,
-    PlayCircle,
-    User,
+  BookOpen,
+  ChevronRight,
+  Clock,
+  FileText,
+  GraduationCap,
+  ListOrdered,
+  MessageSquare,
+  PlayCircle,
+  User,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -151,7 +152,7 @@ export default function CourseDetailPage() {
           <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
             <div className="aspect-video bg-zinc-200 dark:bg-zinc-800">
               {course.thumbnail ? (
-                <img src={course.thumbnail} alt="" className="h-full w-full object-cover" />
+                <img src={toMediaUrl(course.thumbnail)} alt="" className="h-full w-full object-cover" />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-zinc-400 dark:text-zinc-500">
                   <BookOpen className="h-20 w-20 sm:h-24 sm:w-24" aria-hidden />

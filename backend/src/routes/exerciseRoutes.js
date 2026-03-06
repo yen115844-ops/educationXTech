@@ -11,7 +11,7 @@ const { auth, optionalAuth, requireRole } = require('../middleware/auth');
 const router = express.Router();
 
 router.get('/course/:courseId', optionalAuth, listByCourse);
-router.get('/:id', optionalAuth, getById);
+router.get('/:id', auth, getById);
 
 router.post('/course/:courseId', auth, requireRole('instructor', 'admin'), create);
 router.patch('/:id', auth, requireRole('instructor', 'admin'), update);

@@ -24,6 +24,29 @@ const enrollmentSchema = new mongoose.Schema(
         ref: 'Lesson',
       },
     ],
+    lessonWatchStats: [
+      {
+        lessonId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Lesson',
+          required: true,
+        },
+        watchedSeconds: {
+          type: Number,
+          default: 0,
+          min: 0,
+        },
+        durationSeconds: {
+          type: Number,
+          default: 0,
+          min: 0,
+        },
+        completedAt: {
+          type: Date,
+          default: null,
+        },
+      },
+    ],
   },
   { timestamps: true }
 );
