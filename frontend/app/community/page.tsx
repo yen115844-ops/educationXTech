@@ -22,7 +22,7 @@ const TYPE_OPTIONS = [
 
 export default function CommunityPage() {
   return (
-    <Suspense fallback={<div className="mx-auto max-w-4xl px-3 py-6"><div className="space-y-4">{[1,2,3,4].map(i=><div key={i} className="h-28 animate-pulse rounded-xl bg-zinc-200 dark:bg-zinc-800"/>)}</div></div>}>
+    <Suspense fallback={<div className="mx-auto max-w-6xl px-3 py-6"><div className="space-y-4">{[1,2,3,4].map(i=><div key={i} className="h-28 animate-pulse rounded-xl bg-zinc-200 dark:bg-zinc-800"/>)}</div></div>}>
       <CommunityContent />
     </Suspense>
   );
@@ -74,7 +74,7 @@ function CommunityContent() {
   const totalPages = Math.ceil(total / limit) || 1;
 
   return (
-    <div className="mx-auto max-w-4xl px-3 py-6 sm:px-4 sm:py-8 md:py-10">
+    <div className="mx-auto max-w-6xl px-3 py-6 sm:px-4 sm:py-8 md:py-10">
       <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold text-zinc-900 sm:text-2xl dark:text-zinc-100">Cộng đồng</h1>
         {user && (
