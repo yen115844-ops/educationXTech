@@ -1,14 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { apiGet } from '@/lib/api';
 import CourseCard from '@/components/CourseCard';
 import Pagination from '@/components/ui/Pagination';
 import { Search } from 'lucide-react';
 import type { Course } from '@/types';
 
+const SEARCH_DEBOUNCE_MS = 400;
+
 const SORT_OPTIONS = [
   { value: '', label: 'Mới nhất' },
+  { value: 'oldest', label: 'Cũ nhất' },
   { value: 'price_asc', label: 'Giá thấp → cao' },
   { value: 'price_desc', label: 'Giá cao → thấp' },
 ];
@@ -23,11 +26,21 @@ export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [price, setPrice] = useState('');
   const [sort, setSort] = useState('');
   const [loading, setLoading] = useState(true);
   const limit = 12;
+
+  // Debounce search: API chỉ gọi sau khi user ngừng gõ SEARCH_DEBOUNCE_MS
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   useEffect(() => {
     setLoading(true);
@@ -49,10 +62,11 @@ export default function CoursesPage() {
       .finally(() => setLoading(false));
   }, [page, search, price, sort]);
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault();
+    setSearch(searchInput);
     setPage(1);
-  };
+  }, [searchInput]);
 
   const totalPages = Math.ceil(total / limit) || 1;
 
@@ -66,8 +80,8 @@ export default function CoursesPage() {
         <form onSubmit={handleSearch} className="flex min-w-0 flex-1 gap-2">
           <input
             type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Tìm khóa học..."
             className="min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 sm:px-4"
           />

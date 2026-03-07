@@ -18,7 +18,14 @@ const list = async (req, res) => {
     }
     if (price === 'free') filter.price = 0;
     if (price === 'paid') filter.price = { $gt: 0 };
-    const sortOpt = sort === 'price_asc' ? { price: 1, createdAt: -1 } : sort === 'price_desc' ? { price: -1, createdAt: -1 } : { createdAt: -1 };
+    const sortOpt =
+      sort === 'price_asc'
+        ? { price: 1, createdAt: -1 }
+        : sort === 'price_desc'
+          ? { price: -1, createdAt: -1 }
+          : sort === 'oldest'
+            ? { createdAt: 1 }
+            : { createdAt: -1 };
     const skip = (Number(page) - 1) * Number(limit);
     const [courses, total] = await Promise.all([
       Course.find(filter)
