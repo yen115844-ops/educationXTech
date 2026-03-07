@@ -1,5 +1,34 @@
 const User = require('../models/User');
 
+const createByAdmin = async (req, res) => {
+  try {
+    const { email, password, name, role = 'student' } = req.body;
+    if (!email || !password || !name) {
+      return res.error('Thiếu email, mật khẩu hoặc tên', 400, 'VALIDATION_ERROR');
+    }
+    if (password.length < 6) {
+      return res.error('Mật khẩu tối thiểu 6 ký tự', 400, 'VALIDATION_ERROR');
+    }
+    const existing = await User.findOne({ email });
+    if (existing) {
+      return res.error('Email đã được sử dụng', 400, 'CONFLICT');
+    }
+    const allowedRoles = ['student', 'instructor', 'admin'];
+    const userRole = allowedRoles.includes(role) ? role : 'student';
+    const user = await User.create({
+      email: email.trim().toLowerCase(),
+      password,
+      name: name.trim(),
+      role: userRole,
+    });
+    const u = user.toObject();
+    delete u.password;
+    res.success({ user: u }, { statusCode: 201 });
+  } catch (err) {
+    res.error(err.message, 500, 'SERVER_ERROR');
+  }
+};
+
 const list = async (req, res) => {
   try {
     const { page = 1, limit = 20, role, search } = req.query;
@@ -124,6 +153,7 @@ const deleteById = async (req, res) => {
 };
 
 module.exports = {
+  createByAdmin,
   list,
   getProfile,
   getById,

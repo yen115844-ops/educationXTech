@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { apiGet, apiPatch, apiDelete } from '@/lib/api';
+import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api';
 import IconButton from '@/components/ui/IconButton';
 import Pagination from '@/components/ui/Pagination';
-import { Pencil, Trash2, Search } from 'lucide-react';
+import { Pencil, Trash2, Search, UserPlus } from 'lucide-react';
 import type { User } from '@/types';
 
 const ROLE_LABEL: Record<string, string> = {
@@ -28,6 +28,13 @@ export default function AdminUsersPage() {
   const [editAddress, setEditAddress] = useState('');
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addEmail, setAddEmail] = useState('');
+  const [addPassword, setAddPassword] = useState('');
+  const [addName, setAddName] = useState('');
+  const [addRole, setAddRole] = useState<User['role']>('student');
+  const [addLoading, setAddLoading] = useState(false);
+  const [addError, setAddError] = useState('');
 
   const fetchUsers = () => {
     setLoading(true);
@@ -86,6 +93,42 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleOpenAdd = () => {
+    setAddEmail('');
+    setAddPassword('');
+    setAddName('');
+    setAddRole('student');
+    setAddError('');
+    setShowAddModal(true);
+  };
+
+  const handleAddUser = async () => {
+    setAddError('');
+    if (!addEmail.trim() || !addPassword.trim() || !addName.trim()) {
+      setAddError('Vui lòng nhập đủ email, mật khẩu và tên.');
+      return;
+    }
+    if (addPassword.length < 6) {
+      setAddError('Mật khẩu tối thiểu 6 ký tự.');
+      return;
+    }
+    setAddLoading(true);
+    const res = await apiPost<{ user: User }>('/api/users', {
+      email: addEmail.trim(),
+      password: addPassword,
+      name: addName.trim(),
+      role: addRole,
+    });
+    setAddLoading(false);
+    if (res.success && res.data?.user) {
+      setShowAddModal(false);
+      setUsers((prev) => [res.data!.user, ...prev]);
+      setTotal((t) => t + 1);
+    } else {
+      setAddError(res.message || 'Không thể thêm người dùng.');
+    }
+  };
+
   return (
     <div className="min-w-0">
       <h1 className="mb-4 text-xl font-bold text-zinc-900 sm:mb-6 sm:text-2xl dark:text-zinc-100">
@@ -118,6 +161,14 @@ export default function AdminUsersPage() {
           onClick={() => (setPage(1), fetchUsers())}
           className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600"
         />
+        <button
+          type="button"
+          onClick={handleOpenAdd}
+          className="ml-auto flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600"
+        >
+          <UserPlus className="h-4 w-4" />
+          Thêm người dùng
+        </button>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
@@ -183,6 +234,78 @@ export default function AdminUsersPage() {
           </>
         )}
       </div>
+
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-4 dark:bg-zinc-900 sm:p-6">
+            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Thêm người dùng</h3>
+            {addError && (
+              <p className="mt-2 text-sm text-red-600 dark:text-red-400">{addError}</p>
+            )}
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Email *</label>
+                <input
+                  type="email"
+                  value={addEmail}
+                  onChange={(e) => setAddEmail(e.target.value)}
+                  placeholder="user@example.com"
+                  className="mt-1 w-full rounded-lg border border-zinc-300 px-4 py-2 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Mật khẩu * (tối thiểu 6 ký tự)</label>
+                <input
+                  type="password"
+                  value={addPassword}
+                  onChange={(e) => setAddPassword(e.target.value)}
+                  placeholder="••••••"
+                  className="mt-1 w-full rounded-lg border border-zinc-300 px-4 py-2 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Tên *</label>
+                <input
+                  type="text"
+                  value={addName}
+                  onChange={(e) => setAddName(e.target.value)}
+                  placeholder="Họ và tên"
+                  className="mt-1 w-full rounded-lg border border-zinc-300 px-4 py-2 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Vai trò</label>
+                <select
+                  value={addRole}
+                  onChange={(e) => setAddRole(e.target.value as User['role'])}
+                  className="mt-1 w-full rounded-lg border border-zinc-300 px-4 py-2 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                >
+                  <option value="student">Học viên</option>
+                  <option value="instructor">Giảng viên</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-600"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleAddUser}
+                disabled={addLoading}
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50 dark:bg-emerald-500"
+              >
+                {addLoading ? 'Đang thêm...' : 'Thêm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

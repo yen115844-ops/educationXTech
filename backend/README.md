@@ -24,6 +24,81 @@ npm run seed
 
 Sau khi seed: đăng nhập với `admin@xtech.vn` / `123456`, hoặc `instructor1@xtech.vn` / `123456`, `student1@xtech.vn` / `123456`.
 
+## Backup MongoDB
+
+**Cách 1 – Backup bằng Node (không cần cài thêm):**  
+Dữ liệu export ra JSON trong `backend/backups/YYYY-MM-DD_HH-mm-ss/`.
+
+```bash
+npm run backup
+```
+
+**Cách 2 – Backup bằng mongodump (BSON, đầy đủ):**  
+Cần cài [MongoDB Database Tools](https://www.mongodb.com/docs/database-tools/installation/). Trên macOS: `brew install mongodb-database-tools`. Sau đó:
+
+```bash
+chmod +x scripts/backup-mongodump.sh
+./scripts/backup-mongodump.sh
+```
+
+Backup lưu tại `backend/backups/mongodump/<timestamp>/`.
+
+**MongoDB Atlas:** Nếu dùng cluster M10 trở lên, có thể bật [Atlas Backup](https://www.mongodb.com/docs/atlas/backup/overview/) trên dashboard để backup tự động.
+
+## Restore (import lại) MongoDB
+
+### Restore từ backup JSON (sau khi chạy `npm run backup`)
+
+1. **Xem danh sách backup có sẵn** (không truyền tham số):
+
+   ```bash
+   cd backend
+   npm run restore
+   ```
+
+   Sẽ in ra các thư mục kiểu `2025-03-07T12-30-00` trong `backups/`.
+
+2. **Import lại một bản backup** – thay `<tên-thư-mục>` bằng tên in ở bước 1:
+
+   ```bash
+   npm run restore -- <tên-thư-mục>
+   ```
+
+   Ví dụ:
+
+   ```bash
+   npm run restore -- 2025-03-07T12-30-00
+   ```
+
+   Script sẽ xóa dữ liệu hiện tại của từng collection rồi insert lại từ file JSON. Thứ tự collection được xử lý đúng để không lỗi tham chiếu (User → Course → Lesson → …).
+
+### Restore từ backup mongodump (sau khi chạy `backup-mongodump.sh`)
+
+1. **Xem danh sách backup mongodump**:
+
+   ```bash
+   cd backend
+   ./scripts/restore-mongodump.sh
+   ```
+
+   Sẽ in ra các thư mục trong `backups/mongodump/` (vd: `2025-03-07_12-30-00`).
+
+2. **Restore** – thay `<tên-thư-mục>` bằng tên tương ứng:
+
+   ```bash
+   ./scripts/restore-mongodump.sh <tên-thư-mục>
+   ```
+
+   Ví dụ:
+
+   ```bash
+   ./scripts/restore-mongodump.sh 2025-03-07_12-30-00
+   ```
+
+   Script sẽ hỏi xác nhận (Enter để tiếp tục), rồi chạy `mongorestore --drop` để ghi đè database hiện tại bằng dữ liệu trong backup.
+
+**Lưu ý:** Cả hai cách restore đều **ghi đè** dữ liệu hiện tại. Nên backup lại trước nếu cần giữ bản hiện tại.
+
 ## Format phản hồi (Response format)
 
 Mọi API đều trả về cùng một cấu trúc để frontend xử lý thống nhất.

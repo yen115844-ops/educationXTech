@@ -1,5 +1,6 @@
 const express = require('express');
 const {
+  createByAdmin,
   list,
   getProfile,
   getById,
@@ -19,6 +20,7 @@ router.patch('/profile', updateProfile);
 router.post('/change-password', changePassword);
 
 router.get('/', requireRole('admin'), list);
+router.post('/', requireRole('admin'), createByAdmin);
 router.get('/:id', requireRole('admin'), getById);
 router.patch('/:id', requireRole('admin'), updateById);
 router.delete('/:id', requireRole('admin'), deleteById);
