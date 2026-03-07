@@ -6,6 +6,10 @@ export interface User {
   name: string;
   role: UserRole;
   avatar?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  dateOfBirth?: string | null;
+  gender?: 'male' | 'female' | 'other' | null;
   createdAt?: string;
 }
 

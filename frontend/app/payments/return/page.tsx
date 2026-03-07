@@ -20,7 +20,7 @@ function ReturnContent() {
 
   if (!mounted) {
     return (
-      <div className="w-full px-4 py-16 text-center sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-md px-4 py-16 text-center">
         <Loader2 className="mx-auto h-12 w-12 animate-spin text-emerald-600 dark:text-emerald-400" />
         <p className="mt-4 text-zinc-600 dark:text-zinc-400">Đang xử lý kết quả...</p>
       </div>
@@ -28,7 +28,7 @@ function ReturnContent() {
   }
 
   return (
-    <div className="w-full px-4 py-16 text-center sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-md px-4 py-16 text-center">
       {success ? (
         <>
           <CheckCircle className="mx-auto h-16 w-16 text-emerald-600 dark:text-emerald-400" aria-hidden />
@@ -72,7 +72,7 @@ export default function PaymentReturnPage() {
   return (
     <Suspense
       fallback={
-        <div className="w-full px-4 py-16 text-center sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-md px-4 py-16 text-center">
           <Loader2 className="mx-auto h-12 w-12 animate-spin text-emerald-600" />
         </div>
       }

@@ -77,7 +77,7 @@ export default function PostDetailPage() {
 
   if (loading || !post) {
     return (
-      <div className="w-full px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-3xl px-4 py-10">
         <div className="h-96 animate-pulse rounded-xl bg-zinc-200 dark:bg-zinc-800" />
       </div>
     );
@@ -87,7 +87,7 @@ export default function PostDetailPage() {
   const course = typeof post.courseId === 'object' ? post.courseId : null;
 
   return (
-    <div className="w-full px-4 py-10 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-3xl px-4 py-10">
       <Link
         href="/community"
         className="mb-6 inline-block text-sm text-emerald-600 hover:underline dark:text-emerald-400"

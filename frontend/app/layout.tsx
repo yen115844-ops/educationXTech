@@ -34,7 +34,7 @@ export default function RootLayout({
             <Header />
             <main className="min-h-[calc(100vh-3.5rem)]">{children}</main>
             <footer className="border-t border-zinc-200 bg-white py-6 dark:border-zinc-800 dark:bg-zinc-900">
-              <div className="px-4 text-center text-sm text-zinc-500 dark:text-zinc-400 sm:px-6 lg:px-8">
+              <div className="mx-auto max-w-6xl px-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
                 © {new Date().getFullYear()} X-Tech. Học tập trực tuyến.
               </div>
             </footer>

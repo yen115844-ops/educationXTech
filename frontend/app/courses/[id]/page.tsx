@@ -123,7 +123,7 @@ export default function CourseDetailPage() {
 
   if (loading || !course) {
     return (
-      <div className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div className="mx-auto max-w-6xl px-3 py-6 sm:px-4 sm:py-8">
         <div className="h-96 animate-pulse rounded-2xl bg-zinc-200 dark:bg-zinc-800" />
       </div>
     );
@@ -135,7 +135,7 @@ export default function CourseDetailPage() {
   const progress = enrollment?.progress ?? 0;
 
   return (
-    <div className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+    <div className="mx-auto max-w-6xl px-3 py-6 sm:px-4 sm:py-8">
       {/* Breadcrumb */}
       <nav className="mb-6 flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
         <Link href="/courses" className="hover:text-emerald-600 dark:hover:text-emerald-400">

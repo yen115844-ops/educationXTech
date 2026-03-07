@@ -4,16 +4,28 @@ import { useState, useEffect, useRef } from 'react';
 import { apiPatch, apiPost, apiUpload } from '@/lib/api';
 import { toMediaUrl } from '@/lib/media';
 import { useAuth } from '@/context/AuthContext';
+import type { User as UserType } from '@/types';
 import { Camera, User } from 'lucide-react';
 
 export default function ProfilePage() {
   const { user, refreshUser, loading: authLoading } = useAuth();
   const [name, setName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [gender, setGender] = useState<UserType['gender']>(null);
   useEffect(() => {
     if (user?.name) setName(user.name);
     if (user?.avatar) setAvatarUrl(user.avatar);
     else setAvatarUrl(null);
+    setPhone(user?.phone ?? '');
+    setAddress(user?.address ?? '');
+    if (user?.dateOfBirth) {
+      const d = new Date(user.dateOfBirth);
+      setDateOfBirth(d.toISOString().slice(0, 10));
+    } else setDateOfBirth('');
+    setGender(user?.gender ?? null);
   }, [user]);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -27,7 +39,13 @@ export default function ProfilePage() {
     e.preventDefault();
     setError('');
     setSaving(true);
-    const res = await apiPatch<{ user: unknown }>('/api/users/profile', { name });
+    const res = await apiPatch<{ user: unknown }>('/api/users/profile', {
+      name,
+      phone: phone.trim() || null,
+      address: address.trim() || null,
+      dateOfBirth: dateOfBirth || null,
+      gender: gender || null,
+    });
     setSaving(false);
     if (res.success) {
       setMessage('Đã cập nhật hồ sơ.');
@@ -85,16 +103,17 @@ export default function ProfilePage() {
 
   if (authLoading || !user) {
     return (
-      <div className="px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl px-3 py-10 sm:px-4">
         <div className="h-72 animate-pulse rounded-2xl bg-zinc-200/80 dark:bg-zinc-800/80" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-[calc(100vh-3.5rem)]">
+    <div className="mx-auto max-w-6xl px-3 py-6 sm:px-4 sm:py-8 md:py-10">
+      <div className="min-h-[calc(100vh-3.5rem)]">
       {/* Banner + avatar */}
-      <div className="relative bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 px-4 pb-24 pt-8 dark:from-emerald-800 dark:via-emerald-900 dark:to-teal-950 sm:px-6 sm:pb-28 sm:pt-10 lg:px-8">
+      <div className="relative rounded-2xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 px-4 pb-24 pt-8 dark:from-emerald-800 dark:via-emerald-900 dark:to-teal-950 sm:px-6 sm:pb-28 sm:pt-10">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(255,255,255,0.15),transparent)] dark:bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(255,255,255,0.06),transparent)]" aria-hidden />
         <h1 className="relative text-2xl font-bold tracking-tight text-white sm:text-3xl">Hồ sơ</h1>
         <p className="relative mt-1 text-emerald-100/90 dark:text-emerald-200/80">Quản lý thông tin và bảo mật</p>
@@ -169,6 +188,54 @@ export default function ProfilePage() {
                   className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                 />
               </div>
+              <div>
+                <label htmlFor="phone" className="mb-1.5 block text-sm font-medium text-zinc-600 dark:text-zinc-400">Số điện thoại</label>
+                <input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Ví dụ: 0901234567"
+                  className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                />
+              </div>
+              <div>
+                <label htmlFor="address" className="mb-1.5 block text-sm font-medium text-zinc-600 dark:text-zinc-400">Địa chỉ</label>
+                <input
+                  id="address"
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành"
+                  className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="dateOfBirth" className="mb-1.5 block text-sm font-medium text-zinc-600 dark:text-zinc-400">Ngày sinh</label>
+                  <input
+                    id="dateOfBirth"
+                    type="date"
+                    value={dateOfBirth}
+                    onChange={(e) => setDateOfBirth(e.target.value)}
+                    className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="gender" className="mb-1.5 block text-sm font-medium text-zinc-600 dark:text-zinc-400">Giới tính</label>
+                  <select
+                    id="gender"
+                    value={gender ?? ''}
+                    onChange={(e) => setGender((e.target.value || null) as UserType['gender'])}
+                    className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                  >
+                    <option value="">Chọn giới tính</option>
+                    <option value="male">Nam</option>
+                    <option value="female">Nữ</option>
+                    <option value="other">Khác</option>
+                  </select>
+                </div>
+              </div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
                 {uploadingAvatar ? 'Đang tải ảnh lên...' : 'Ảnh đại diện: nhấn nút camera phía trên (JPEG, PNG, GIF, WebP, tối đa 2MB).'}
               </p>
@@ -219,6 +286,7 @@ export default function ProfilePage() {
             </form>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

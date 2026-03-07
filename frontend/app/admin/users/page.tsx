@@ -24,6 +24,8 @@ export default function AdminUsersPage() {
   const [editing, setEditing] = useState<User | null>(null);
   const [editName, setEditName] = useState('');
   const [editRole, setEditRole] = useState<User['role']>('student');
+  const [editPhone, setEditPhone] = useState('');
+  const [editAddress, setEditAddress] = useState('');
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -51,6 +53,8 @@ export default function AdminUsersPage() {
     setEditing(u);
     setEditName(u.name);
     setEditRole(u.role);
+    setEditPhone(u.phone ?? '');
+    setEditAddress(u.address ?? '');
   };
 
   const handleSaveEdit = async () => {
@@ -59,6 +63,8 @@ export default function AdminUsersPage() {
     const res = await apiPatch<{ user: User }>(`/api/users/${editing._id}`, {
       name: editName,
       role: editRole,
+      phone: editPhone.trim() || null,
+      address: editAddress.trim() || null,
     });
     setSaving(false);
     if (res.success && res.data?.user) {
@@ -204,6 +210,26 @@ export default function AdminUsersPage() {
                   <option value="instructor">Giảng viên</option>
                   <option value="student">Học viên</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Số điện thoại</label>
+                <input
+                  type="tel"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  placeholder="0901234567"
+                  className="mt-1 w-full rounded-lg border border-zinc-300 px-4 py-2 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Địa chỉ</label>
+                <input
+                  type="text"
+                  value={editAddress}
+                  onChange={(e) => setEditAddress(e.target.value)}
+                  placeholder="Địa chỉ"
+                  className="mt-1 w-full rounded-lg border border-zinc-300 px-4 py-2 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                />
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-2">

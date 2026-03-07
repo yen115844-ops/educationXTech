@@ -9,6 +9,7 @@ const list = async (req, res) => {
       filter.$or = [
         { name: new RegExp(search, 'i') },
         { email: new RegExp(search, 'i') },
+        { phone: new RegExp(search, 'i') },
       ];
     }
     const skip = (Number(page) - 1) * Number(limit);
@@ -44,10 +45,14 @@ const getById = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   try {
-    const { name, avatar } = req.body;
+    const { name, avatar, phone, address, dateOfBirth, gender } = req.body;
     const update = {};
     if (name !== undefined) update.name = name;
     if (avatar !== undefined) update.avatar = avatar;
+    if (phone !== undefined) update.phone = phone ? String(phone).trim() : null;
+    if (address !== undefined) update.address = address ? String(address).trim() : null;
+    if (dateOfBirth !== undefined) update.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : null;
+    if (gender !== undefined) update.gender = ['male', 'female', 'other'].includes(gender) ? gender : null;
     const user = await User.findByIdAndUpdate(
       req.user._id,
       update,
@@ -83,11 +88,15 @@ const changePassword = async (req, res) => {
 
 const updateById = async (req, res) => {
   try {
-    const { name, role, avatar } = req.body;
+    const { name, role, avatar, phone, address, dateOfBirth, gender } = req.body;
     const update = {};
     if (name !== undefined) update.name = name;
     if (role !== undefined && ['admin', 'instructor', 'student'].includes(role)) update.role = role;
     if (avatar !== undefined) update.avatar = avatar;
+    if (phone !== undefined) update.phone = phone ? String(phone).trim() : null;
+    if (address !== undefined) update.address = address ? String(address).trim() : null;
+    if (dateOfBirth !== undefined) update.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : null;
+    if (gender !== undefined) update.gender = ['male', 'female', 'other'].includes(gender) ? gender : null;
     const user = await User.findByIdAndUpdate(
       req.params.id,
       update,
