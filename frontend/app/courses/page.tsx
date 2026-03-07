@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { apiGet } from '@/lib/api';
 import CourseCard from '@/components/CourseCard';
 import Pagination from '@/components/ui/Pagination';
+import Select from '@/components/ui/Select';
 import { Search } from 'lucide-react';
 import type { Course } from '@/types';
 
@@ -83,37 +84,29 @@ export default function CoursesPage() {
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Tìm khóa học..."
-            className="min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 sm:px-4"
+            className="h-10 min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 sm:px-4"
           />
           <button
             type="submit"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 sm:h-10 sm:w-auto sm:px-4"
+            className="flex h-10 shrink-0 items-center justify-center gap-1 rounded-lg bg-emerald-600 px-4 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600"
             aria-label="Tìm kiếm"
             title="Tìm kiếm"
           >
             <Search className="h-4 w-4 shrink-0" />
-            <span className="ml-1 hidden sm:inline">Tìm</span>
+            <span className="hidden sm:inline">Tìm</span>
           </button>
         </form>
         <div className="flex flex-wrap items-center gap-3">
-          <select
+          <Select
             value={price}
             onChange={(e) => (setPrice(e.target.value), setPage(1))}
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-          >
-            {PRICE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-          <select
+            options={PRICE_OPTIONS}
+          />
+          <Select
             value={sort}
             onChange={(e) => (setSort(e.target.value), setPage(1))}
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-          >
-            {SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
+            options={SORT_OPTIONS}
+          />
         </div>
       </div>
 

@@ -54,17 +54,17 @@ export default function Header() {
               <button
                 type="button"
                 onClick={() => setUserMenuOpen((o) => !o)}
-                className="flex items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-2 text-sm font-medium text-zinc-700 dark:border-zinc-700 dark:text-zinc-300 sm:gap-2 sm:px-3"
+                className="flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 text-sm font-medium text-zinc-700 dark:border-zinc-700 dark:text-zinc-300 sm:gap-2 sm:px-3"
               >
                 {user.avatar ? (
                   <img
                     src={toMediaUrl(user.avatar)}
                     alt=""
-                    className="h-7 w-7 shrink-0 rounded-full object-cover"
+                    className="h-6 w-6 shrink-0 rounded-full object-cover sm:h-7 sm:w-7"
                   />
                 ) : (
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-200 dark:bg-zinc-700">
-                    <User className="h-4 w-4 text-zinc-500" aria-hidden />
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-200 dark:bg-zinc-700 sm:h-7 sm:w-7">
+                    <User className="h-3.5 w-3.5 text-zinc-500 sm:h-4 sm:w-4" aria-hidden />
                   </span>
                 )}
                 <span className="max-w-[80px] truncate sm:max-w-[120px]">{user.name}</span>
@@ -77,7 +77,7 @@ export default function Header() {
                     aria-hidden
                     onClick={() => setUserMenuOpen(false)}
                   />
-                  <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+                  <div className="absolute right-0 top-full z-20 mt-1.5 w-48 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
                     <Link
                       href="/dashboard"
                       className="flex items-center gap-2 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
@@ -131,13 +131,13 @@ export default function Header() {
             <>
               <Link
                 href="/login"
-                className="rounded-lg border border-zinc-200 px-2.5 py-2 text-sm font-medium text-zinc-700 dark:border-zinc-700 dark:text-zinc-300 sm:px-3"
+                className="flex h-10 items-center rounded-lg border border-zinc-200 px-3 text-sm font-medium text-zinc-700 dark:border-zinc-700 dark:text-zinc-300"
               >
                 Đăng nhập
               </Link>
               <Link
                 href="/register"
-                className="rounded-lg bg-emerald-600 px-2.5 py-2 text-sm font-medium text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 sm:px-3"
+                className="flex h-10 items-center rounded-lg bg-emerald-600 px-3 text-sm font-medium text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600"
               >
                 Đăng ký
               </Link>
@@ -146,7 +146,7 @@ export default function Header() {
 
           <button
             type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800 md:hidden"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800 md:hidden"
             onClick={() => setMenuOpen((o) => !o)}
             aria-label={menuOpen ? 'Đóng menu' : 'Mở menu'}
           >

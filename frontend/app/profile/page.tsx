@@ -3,9 +3,20 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiPatch, apiPost, apiUpload } from '@/lib/api';
 import { toMediaUrl } from '@/lib/media';
+import Select from '@/components/ui/Select';
 import { useAuth } from '@/context/AuthContext';
 import type { User as UserType } from '@/types';
 import { Camera, User } from 'lucide-react';
+
+const GENDER_OPTIONS = [
+  { value: '', label: 'Chọn giới tính' },
+  { value: 'male', label: 'Nam' },
+  { value: 'female', label: 'Nữ' },
+  { value: 'other', label: 'Khác' },
+];
+
+const inputBase =
+  'h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm transition-colors focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-emerald-500 dark:focus:ring-emerald-500';
 
 export default function ProfilePage() {
   const { user, refreshUser, loading: authLoading } = useAuth();
@@ -218,22 +229,18 @@ export default function ProfilePage() {
                     type="date"
                     value={dateOfBirth}
                     onChange={(e) => setDateOfBirth(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                    className={inputBase}
                   />
                 </div>
                 <div>
                   <label htmlFor="gender" className="mb-1.5 block text-sm font-medium text-zinc-600 dark:text-zinc-400">Giới tính</label>
-                  <select
+                  <Select
                     id="gender"
                     value={gender ?? ''}
                     onChange={(e) => setGender((e.target.value || null) as UserType['gender'])}
-                    className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-                  >
-                    <option value="">Chọn giới tính</option>
-                    <option value="male">Nam</option>
-                    <option value="female">Nữ</option>
-                    <option value="other">Khác</option>
-                  </select>
+                    options={GENDER_OPTIONS}
+                    className="w-full"
+                  />
                 </div>
               </div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">

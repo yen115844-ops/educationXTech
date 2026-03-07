@@ -2,6 +2,7 @@
 
 import IconButton from '@/components/ui/IconButton';
 import Pagination from '@/components/ui/Pagination';
+import Select from '@/components/ui/Select';
 import { useAuth } from '@/context/AuthContext';
 import { apiDelete, apiGet, apiPatch, apiPost, apiUpload } from '@/lib/api';
 import { toMediaUrl } from '@/lib/media';
@@ -211,23 +212,23 @@ export default function AdminCoursesPage() {
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && (setPage(1), fetchCourses())}
           placeholder="Tên, mô tả..."
-          className="min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 sm:w-52 sm:flex-none"
+          className="h-10 min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 sm:w-52 sm:flex-none"
         />
-        <select
+        <Select
           value={published}
           onChange={(e) => (setPublished(e.target.value), setPage(1))}
-          className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-        >
-          <option value="">Tất cả</option>
-          <option value="true">Đã công bố</option>
-          <option value="false">Chưa công bố</option>
-        </select>
+          options={[
+            { value: '', label: 'Tất cả' },
+            { value: 'true', label: 'Đã công bố' },
+            { value: 'false', label: 'Chưa công bố' },
+          ]}
+        />
         <IconButton
           icon={<Search className="h-4 w-4" />}
           label="Lọc"
           variant="primary"
           onClick={() => (setPage(1), fetchCourses())}
-          className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600"
+          className="!h-10 !w-10 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600"
         />
       </div>
 
