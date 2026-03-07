@@ -4,11 +4,15 @@ const fs = require('fs');
 
 const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads');
 const VIDEO_UPLOAD_DIR = path.join(UPLOAD_DIR, 'videos');
+const AVATAR_UPLOAD_DIR = path.join(UPLOAD_DIR, 'avatars');
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 if (!fs.existsSync(VIDEO_UPLOAD_DIR)) {
   fs.mkdirSync(VIDEO_UPLOAD_DIR, { recursive: true });
+}
+if (!fs.existsSync(AVATAR_UPLOAD_DIR)) {
+  fs.mkdirSync(AVATAR_UPLOAD_DIR, { recursive: true });
 }
 
 const createStorage = (destinationDir, fallbackExt) => multer.diskStorage({
@@ -33,6 +37,7 @@ const VIDEO_MIMES = [
 
 const MAX_THUMBNAIL_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_VIDEO_SIZE = 300 * 1024 * 1024; // 300MB
+const MAX_AVATAR_SIZE = 2 * 1024 * 1024; // 2MB
 
 const createUploader = ({ destinationDir, fallbackExt, allowedMimes, maxSize, invalidTypeMessage, fieldName }) => {
   const fileFilter = (_req, file, cb) => {
@@ -70,11 +75,23 @@ const uploadVideo = createUploader({
   fieldName: 'video',
 });
 
+const uploadAvatar = createUploader({
+  destinationDir: AVATAR_UPLOAD_DIR,
+  fallbackExt: '.jpg',
+  allowedMimes: THUMBNAIL_MIMES,
+  maxSize: MAX_AVATAR_SIZE,
+  invalidTypeMessage: 'Chỉ chấp nhận ảnh: JPEG, PNG, GIF, WebP',
+  fieldName: 'avatar',
+});
+
 module.exports = {
   uploadThumbnail,
   uploadVideo,
+  uploadAvatar,
   UPLOAD_DIR,
   VIDEO_UPLOAD_DIR,
+  AVATAR_UPLOAD_DIR,
   MAX_THUMBNAIL_SIZE,
   MAX_VIDEO_SIZE,
+  MAX_AVATAR_SIZE,
 };

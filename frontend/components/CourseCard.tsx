@@ -1,6 +1,6 @@
 import { toMediaUrl } from '@/lib/media';
 import type { Course } from '@/types';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, User } from 'lucide-react';
 import Link from 'next/link';
 
 function formatPrice(n: number) {
@@ -46,9 +46,18 @@ export default function CourseCard({
           {course.title}
         </h3>
         {instructor && (
-          <p className="mt-1 text-xs text-zinc-500 sm:text-sm dark:text-zinc-400">
-            {instructor.name}
-          </p>
+          <div className="mt-1.5 flex items-center gap-2">
+            <div className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+              {instructor.avatar ? (
+                <img src={toMediaUrl(instructor.avatar)} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <User className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" aria-hidden />
+              )}
+            </div>
+            <p className="text-xs text-zinc-500 sm:text-sm dark:text-zinc-400 truncate">
+              {instructor.name}
+            </p>
+          </div>
         )}
         <p className="mt-1.5 line-clamp-2 text-xs text-zinc-600 sm:mt-2 sm:text-sm dark:text-zinc-400">
           {course.description || 'Khóa học trực tuyến'}

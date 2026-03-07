@@ -56,7 +56,7 @@ export default function NewPostPage() {
 
   if (!user) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-10 text-center">
+      <div className="w-full px-4 py-10 text-center sm:px-6 lg:px-8">
         <p className="text-zinc-600 dark:text-zinc-400">Vui lòng đăng nhập để viết bài.</p>
         <Link href="/login" className="mt-4 inline-block text-emerald-600 hover:underline">
           Đăng nhập
@@ -66,7 +66,7 @@ export default function NewPostPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10">
+    <div className="w-full px-4 py-10 sm:px-6 lg:px-8">
       <Link href="/community" className="mb-6 inline-block text-sm text-emerald-600 hover:underline dark:text-emerald-400">
         ← Cộng đồng
       </Link>

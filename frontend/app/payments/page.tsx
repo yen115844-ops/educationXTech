@@ -30,14 +30,14 @@ export default function PaymentsPage() {
 
   if (authLoading || !user) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-10">
+      <div className="w-full px-4 py-10 sm:px-6 lg:px-8">
         <div className="h-12 w-48 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10">
+    <div className="w-full px-4 py-10 sm:px-6 lg:px-8">
       <h1 className="mb-8 text-2xl font-bold text-zinc-900 dark:text-zinc-100">
         Lịch sử thanh toán
       </h1>

@@ -53,7 +53,7 @@ export default function DashboardPage() {
 
   if (authLoading) {
     return (
-      <div className="mx-auto max-w-6xl px-3 py-10 sm:px-4">
+      <div className="w-full px-4 py-10 sm:px-6 lg:px-8">
         <div className="h-12 w-48 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
       </div>
     );
@@ -61,7 +61,7 @@ export default function DashboardPage() {
 
   if (!user) {
     return (
-      <div className="mx-auto max-w-6xl px-3 py-10 text-center sm:px-4">
+      <div className="w-full px-4 py-10 text-center sm:px-6 lg:px-8">
         <p className="text-zinc-600 dark:text-zinc-400">Vui lòng đăng nhập để xem khóa học của bạn.</p>
         <Link href="/login" className="mt-4 inline-block text-emerald-600 hover:underline">
           Đăng nhập
@@ -71,7 +71,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-3 py-6 sm:px-4 sm:py-8 md:py-10">
+    <div className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8 md:py-10">
       <h1 className="mb-2 text-xl font-bold text-zinc-900 sm:text-2xl dark:text-zinc-100">
         Tổng quan
       </h1>

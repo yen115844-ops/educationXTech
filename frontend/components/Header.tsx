@@ -2,6 +2,7 @@
 
 import ThemeToggle from '@/components/ThemeToggle';
 import { useAuth } from '@/context/AuthContext';
+import { toMediaUrl } from '@/lib/media';
 import { ChevronDown, CreditCard, GraduationCap, LayoutDashboard, LogOut, Menu, User, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -22,7 +23,7 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/95 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 px-3 sm:px-4">
+      <div className="flex h-14 w-full items-center justify-between gap-2 px-4 sm:px-6 lg:px-8">
         <Link href="/" className="shrink-0 text-xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
           X-Tech
         </Link>
@@ -55,6 +56,17 @@ export default function Header() {
                 onClick={() => setUserMenuOpen((o) => !o)}
                 className="flex items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-2 text-sm font-medium text-zinc-700 dark:border-zinc-700 dark:text-zinc-300 sm:gap-2 sm:px-3"
               >
+                {user.avatar ? (
+                  <img
+                    src={toMediaUrl(user.avatar)}
+                    alt=""
+                    className="h-7 w-7 shrink-0 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-200 dark:bg-zinc-700">
+                    <User className="h-4 w-4 text-zinc-500" aria-hidden />
+                  </span>
+                )}
                 <span className="max-w-[80px] truncate sm:max-w-[120px]">{user.name}</span>
                 <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
               </button>

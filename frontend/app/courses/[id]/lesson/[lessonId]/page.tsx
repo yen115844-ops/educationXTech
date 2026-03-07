@@ -14,6 +14,7 @@ import {
     ListOrdered,
     Lock,
     PlayCircle,
+    User,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -583,6 +584,27 @@ export default function LessonPage() {
                 );
               })}
             </ul>
+            {(() => {
+              const instructor = typeof course.instructorId === 'object' ? course.instructorId : null;
+              if (!instructor) return null;
+              return (
+                <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-700">
+                  <p className="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">Giảng viên</p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+                      {instructor.avatar ? (
+                        <img src={toMediaUrl(instructor.avatar)} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <User className="h-5 w-5 text-zinc-500 dark:text-zinc-400" aria-hidden />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">{instructor.name}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
             <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-700">
               <Link
                 href={`/courses/${id}/learn`}

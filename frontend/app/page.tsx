@@ -57,13 +57,13 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-6xl px-3 py-6 sm:px-4 sm:py-8 md:py-10">
+    <div className="w-full px-4 py-8 sm:px-6 sm:py-10 lg:px-8 md:py-12">
       {/* Hero */}
       <section className="mb-16 text-center sm:mb-20">
         <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-4xl md:text-5xl">
           Học tập trực tuyến
         </h1>
-        <p className="mx-auto mt-4 max-w-2xl text-base text-zinc-600 dark:text-zinc-400 sm:text-lg">
+        <p className="mt-4 text-base text-zinc-600 dark:text-zinc-400 sm:text-lg">
           Khóa học công nghệ, bài giảng, bài tập và cộng đồng hỗ trợ. Bắt đầu ngay hôm nay.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3 sm:gap-4">

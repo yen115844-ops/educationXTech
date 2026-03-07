@@ -3,8 +3,9 @@
 import Pagination from '@/components/ui/Pagination';
 import { useAuth } from '@/context/AuthContext';
 import { apiGet } from '@/lib/api';
+import { toMediaUrl } from '@/lib/media';
 import type { Course, Post } from '@/types';
-import { Search } from 'lucide-react';
+import { Search, User } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
@@ -21,7 +22,7 @@ const TYPE_OPTIONS = [
 
 export default function CommunityPage() {
   return (
-    <Suspense fallback={<div className="mx-auto max-w-4xl px-3 py-6"><div className="space-y-4">{[1,2,3,4].map(i=><div key={i} className="h-28 animate-pulse rounded-xl bg-zinc-200 dark:bg-zinc-800"/>)}</div></div>}>
+    <Suspense fallback={<div className="w-full px-4 py-6 sm:px-6 lg:px-8"><div className="space-y-4">{[1,2,3,4].map(i=><div key={i} className="h-28 animate-pulse rounded-xl bg-zinc-200 dark:bg-zinc-800"/>)}</div></div>}>
       <CommunityContent />
     </Suspense>
   );
@@ -73,7 +74,7 @@ function CommunityContent() {
   const totalPages = Math.ceil(total / limit) || 1;
 
   return (
-    <div className="mx-auto max-w-4xl px-3 py-6 sm:px-4 sm:py-8 md:py-10">
+    <div className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8 md:py-10">
       <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold text-zinc-900 sm:text-2xl dark:text-zinc-100">Cộng đồng</h1>
         {user && (
@@ -165,7 +166,18 @@ function CommunityContent() {
                       {post.content}
                     </p>
                     <div className="mt-2 flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
-                      {author && <span>{author.name}</span>}
+                      {author && (
+                        <span className="flex items-center gap-1.5">
+                          <span className="flex h-5 w-5 shrink-0 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+                            {author.avatar ? (
+                              <img src={toMediaUrl(author.avatar)} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              <span className="flex h-full w-full items-center justify-center"><User className="h-3 w-3 text-zinc-400" aria-hidden /></span>
+                            )}
+                          </span>
+                          {author.name}
+                        </span>
+                      )}
                       {course && <span>· {course.title}</span>}
                       <span>{formatDate(post.createdAt)}</span>
                       <span className="rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-zinc-800">

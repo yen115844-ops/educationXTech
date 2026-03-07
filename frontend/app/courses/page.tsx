@@ -57,7 +57,7 @@ export default function CoursesPage() {
   const totalPages = Math.ceil(total / limit) || 1;
 
   return (
-    <div className="mx-auto max-w-6xl px-3 py-6 sm:px-4 sm:py-8 md:py-10">
+    <div className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8 md:py-10">
       <h1 className="mb-6 text-2xl font-bold text-zinc-900 sm:mb-8 sm:text-3xl dark:text-zinc-100">
         Khóa học
       </h1>

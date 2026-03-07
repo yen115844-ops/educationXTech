@@ -1,6 +1,7 @@
 'use client';
 
 import { apiGet } from '@/lib/api';
+import { toMediaUrl } from '@/lib/media';
 import type { Course, Exercise, Submission } from '@/types';
 import {
     Award,
@@ -8,6 +9,7 @@ import {
     FileText,
     Filter,
     TrendingUp,
+    User,
     Users,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -206,13 +208,22 @@ export default function CourseSubmissionsPage() {
                     >
                       <td className="px-3 py-3 text-zinc-500 sm:px-4">{idx + 1}</td>
                       <td className="px-3 py-3 sm:px-4">
-                        <div>
-                          <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                            {student.name}
-                          </p>
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                            {student.email}
-                          </p>
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+                            {student.avatar ? (
+                              <img src={toMediaUrl(student.avatar)} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              <User className="h-4 w-4 text-zinc-500 dark:text-zinc-400" aria-hidden />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                              {student.name}
+                            </p>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                              {student.email}
+                            </p>
+                          </div>
                         </div>
                       </td>
                       <td className="px-3 py-3 sm:px-4">

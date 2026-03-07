@@ -123,7 +123,7 @@ export default function CourseDetailPage() {
 
   if (loading || !course) {
     return (
-      <div className="mx-auto max-w-6xl px-3 py-6 sm:px-4 sm:py-8">
+      <div className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <div className="h-96 animate-pulse rounded-2xl bg-zinc-200 dark:bg-zinc-800" />
       </div>
     );
@@ -135,7 +135,7 @@ export default function CourseDetailPage() {
   const progress = enrollment?.progress ?? 0;
 
   return (
-    <div className="mx-auto max-w-6xl px-3 py-6 sm:px-4 sm:py-8">
+    <div className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       {/* Breadcrumb */}
       <nav className="mb-6 flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
         <Link href="/courses" className="hover:text-emerald-600 dark:hover:text-emerald-400">
@@ -163,9 +163,16 @@ export default function CourseDetailPage() {
               <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 sm:text-2xl md:text-3xl">
                 {course.title}
               </h1>
-              <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-                Giảng viên: {instructor?.name ?? 'X-Tech'}
-              </p>
+              <div className="mt-2 flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+                  {instructor?.avatar ? (
+                    <img src={toMediaUrl(instructor.avatar)} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <User className="h-4 w-4 text-zinc-500 dark:text-zinc-400" aria-hidden />
+                  )}
+                </div>
+                <span>Giảng viên: {instructor?.name ?? 'X-Tech'}</span>
+              </div>
               {/* Stats row - only on main for mobile, duplicate in sidebar for desktop */}
               <div className="mt-4 flex flex-wrap gap-4 text-sm text-zinc-500 lg:hidden dark:text-zinc-400">
                 <span className="flex items-center gap-1.5">
@@ -310,7 +317,9 @@ export default function CourseDetailPage() {
             {posts.length > 0 && (
               <div className="border-t border-zinc-200 dark:border-zinc-700">
                 <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                  {posts.map((post) => (
+                  {posts.map((post) => {
+                  const postAuthor = typeof post.userId === 'object' ? post.userId : null;
+                  return (
                     <li key={post._id} className="p-4 sm:px-6">
                       <Link
                         href={`/community/${post._id}`}
@@ -328,12 +337,20 @@ export default function CourseDetailPage() {
                             {post.title}
                           </span>
                         </div>
-                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                          {post.userId?.name} &middot; {new Date(post.createdAt).toLocaleDateString('vi-VN')}
-                        </p>
+                        <div className="mt-1.5 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+                          <div className="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+                            {postAuthor?.avatar ? (
+                              <img src={toMediaUrl(postAuthor.avatar)} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              <User className="h-3 w-3 text-zinc-400" aria-hidden />
+                            )}
+                          </div>
+                          <span>{postAuthor?.name ?? '—'} · {new Date(post.createdAt).toLocaleDateString('vi-VN')}</span>
+                        </div>
                       </Link>
                     </li>
-                  ))}
+                  );
+                })}
                 </ul>
               </div>
             )}
@@ -449,8 +466,12 @@ export default function CourseDetailPage() {
                   Giảng viên
                 </p>
                 <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-zinc-200 dark:bg-zinc-700">
-                    <User className="h-6 w-6 text-zinc-500 dark:text-zinc-400" aria-hidden />
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+                    {instructor.avatar ? (
+                      <img src={toMediaUrl(instructor.avatar)} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <User className="h-6 w-6 text-zinc-500 dark:text-zinc-400" aria-hidden />
+                    )}
                   </div>
                   <div className="min-w-0">
                     <p className="font-medium text-zinc-900 dark:text-zinc-100">{instructor.name}</p>
