@@ -17,6 +17,12 @@ const Submission = require('../src/models/Submission');
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/xtech';
 
+const normalizeAnswer = (value, caseSensitive = false) => {
+  if (value == null) return '';
+  const text = String(value).trim();
+  return caseSensitive ? text : text.toLowerCase();
+};
+
 async function seed() {
   await mongoose.connect(MONGODB_URI);
   console.log('Connected to MongoDB');
@@ -99,6 +105,73 @@ async function seed() {
       { question: 'JSX là gì?', options: ['JavaScript XML', 'Java Syntax Extension', 'JSON Extra'], correctAnswer: 'JavaScript XML', points: 1 },
     ],
   ];
+  const codingBanks = [
+    [
+      {
+        question: 'Điền vào chỗ trống để cộng hai số trong JavaScript.',
+        inputType: 'code_blank',
+        codeTemplate: 'function sum(a, b) {\n  return {{blank_1}} + {{blank_2}};\n}',
+        blanks: [
+          { key: 'blank_1', answer: 'a', placeholder: 'tham số thứ nhất' },
+          { key: 'blank_2', answer: 'b', placeholder: 'tham số thứ hai' },
+        ],
+        caseSensitive: false,
+        points: 2,
+      },
+      {
+        question: 'Điền từ khóa để khai báo hằng số trong JavaScript.',
+        inputType: 'code_blank',
+        codeTemplate: '{{blank_1}} apiBase = "https://example.com";',
+        blanks: [{ key: 'blank_1', answer: 'const', placeholder: 'từ khóa' }],
+        caseSensitive: false,
+        points: 1,
+      },
+    ],
+    [
+      {
+        question: 'Điền lệnh xuất dữ liệu ra console.',
+        inputType: 'code_blank',
+        codeTemplate: '{{blank_1}}.log("Xin chao");',
+        blanks: [{ key: 'blank_1', answer: 'console', placeholder: 'đối tượng console' }],
+        caseSensitive: false,
+        points: 1,
+      },
+      {
+        question: 'Điền từ khóa tạo điều kiện rẽ nhánh.',
+        inputType: 'code_blank',
+        codeTemplate: '{{blank_1}} (score >= 5) {\n  pass = true;\n}',
+        blanks: [{ key: 'blank_1', answer: 'if', placeholder: 'từ khóa điều kiện' }],
+        caseSensitive: false,
+        points: 1,
+      },
+    ],
+  ];
+  const essayBanks = [
+    [
+      {
+        question: 'Hãy giải thích sự khác nhau giữa let, const và var trong JavaScript.',
+        inputType: 'essay',
+        points: 3,
+      },
+      {
+        question: 'Mô tả ngắn gọn vòng đời của một request API từ frontend đến backend.',
+        inputType: 'essay',
+        points: 2,
+      },
+    ],
+    [
+      {
+        question: 'Trình bày ưu điểm của mô hình MVC trong ứng dụng web.',
+        inputType: 'essay',
+        points: 3,
+      },
+      {
+        question: 'Nêu cách bạn tối ưu một truy vấn MongoDB chậm.',
+        inputType: 'essay',
+        points: 2,
+      },
+    ],
+  ];
   for (let c = 0; c < courses.length; c++) {
     const courseId = courses[c]._id;
     const numLessons = c < 15 ? 2 : 1;
@@ -112,12 +185,18 @@ async function seed() {
       });
       lessonCount++;
       if (exerciseCount < 50) {
-        const questions = quizBanks[exerciseCount % quizBanks.length];
+        const mode = exerciseCount % 6 === 0 ? 'coding' : exerciseCount % 6 === 3 ? 'text' : 'quiz';
+        const questions =
+          mode === 'quiz'
+            ? quizBanks[exerciseCount % quizBanks.length]
+            : mode === 'coding'
+              ? codingBanks[exerciseCount % codingBanks.length]
+              : essayBanks[exerciseCount % essayBanks.length];
         const ex = await Exercise.create({
           courseId,
           lessonId: lesson._id,
           title: `Bài tập bài ${L + 1} - Khóa ${c + 1}`,
-          type: 'quiz',
+          type: mode,
           questions,
         });
         allExercises.push(ex);
@@ -178,7 +257,28 @@ async function seed() {
     for (let s = 0; s < Math.min(3, students.length); s++) {
       const student = students[(i * 3 + s) % students.length];
       const answers = qs.map((q, idx) => {
-        // 70% trả lời đúng
+        const mode = q.inputType || (ex.type === 'quiz' ? 'choice' : ex.type === 'coding' ? 'code_blank' : 'essay');
+
+        if (mode === 'essay') {
+          return {
+            questionIndex: idx,
+            answer: `Bài làm tự luận mẫu của ${student.name} cho câu ${idx + 1}.`,
+          };
+        }
+
+        if (mode === 'code_blank') {
+          const result = {};
+          for (const blank of q.blanks || []) {
+            const isCorrect = Math.random() < 0.7;
+            result[blank.key] = isCorrect ? String(blank.answer) : `${blank.answer || ''}_sai`;
+          }
+          return {
+            questionIndex: idx,
+            answer: result,
+          };
+        }
+
+        // choice
         const isCorrect = Math.random() < 0.7;
         return {
           questionIndex: idx,
@@ -187,11 +287,37 @@ async function seed() {
       });
       let score = 0;
       let totalPoints = 0;
+      let hasManualQuestion = false;
       for (let qi = 0; qi < qs.length; qi++) {
+        const q = qs[qi];
+        const mode = q.inputType || (ex.type === 'quiz' ? 'choice' : ex.type === 'coding' ? 'code_blank' : 'essay');
+        const submitted = answers[qi]?.answer;
         const pts = qs[qi].points || 1;
+        if (mode === 'essay') {
+          hasManualQuestion = true;
+          continue;
+        }
         totalPoints += pts;
-        if (String(answers[qi]?.answer) === String(qs[qi].correctAnswer)) score += pts;
+
+        if (mode === 'code_blank') {
+          const blanks = q.blanks || [];
+          if (blanks.length > 0 && submitted && typeof submitted === 'object') {
+            let correctCount = 0;
+            for (const blank of blanks) {
+              const actual = normalizeAnswer(submitted[blank.key], q.caseSensitive);
+              const expected = normalizeAnswer(blank.answer, q.caseSensitive);
+              if (actual !== '' && actual === expected) correctCount += 1;
+            }
+            score += (pts * correctCount) / blanks.length;
+          }
+          continue;
+        }
+
+        if (normalizeAnswer(submitted, q.caseSensitive) === normalizeAnswer(q.correctAnswer, q.caseSensitive)) {
+          score += pts;
+        }
       }
+      score = Math.round(score * 100) / 100;
       const percentage = totalPoints > 0 ? Math.round((score / totalPoints) * 100) : 0;
       await Submission.create({
         userId: student._id,
@@ -201,6 +327,7 @@ async function seed() {
         score,
         totalPoints,
         percentage,
+        status: hasManualQuestion ? 'pending_review' : 'graded',
       });
       submissionCount++;
     }

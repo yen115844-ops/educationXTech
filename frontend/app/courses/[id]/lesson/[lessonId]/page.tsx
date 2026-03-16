@@ -459,7 +459,9 @@ export default function LessonPage() {
                               <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
                                 {ex.type === 'quiz'
                                   ? `Trắc nghiệm · ${ex.questions?.length || 0} câu hỏi`
-                                  : 'Tự luận'}
+                                  : ex.type === 'coding'
+                                    ? `Lập trình điền chữ · ${ex.questions?.length || 0} câu hỏi`
+                                    : 'Tự luận'}
                               </p>
                             </div>
                             {sub ? (

@@ -5,6 +5,7 @@ const {
   getMySubmissionsByCourse,
   getAllSubmissionsByExercise,
   getAllSubmissionsByCourse,
+  gradeSubmission,
 } = require('../controllers/submissionController');
 const { auth, requireRole } = require('../middleware/auth');
 const router = express.Router();
@@ -25,5 +26,8 @@ router.get('/exercise/:exerciseId/all', requireRole('instructor', 'admin'), getA
 
 // Instructor / Admin xem tất cả submissions cho 1 khóa học
 router.get('/course/:courseId/all', requireRole('instructor', 'admin'), getAllSubmissionsByCourse);
+
+// Instructor / Admin chấm bài thủ công
+router.patch('/:id/grade', requireRole('instructor', 'admin'), gradeSubmission);
 
 module.exports = router;

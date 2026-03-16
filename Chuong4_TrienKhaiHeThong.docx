@@ -1,0 +1,393 @@
+Chương 4: Triển khai hệ thống (Cài đặt, bảo vệ, thử nghiệm, tài liệu hướng dẫn)
+
+Chương này trình bày chi tiết quá trình hiện thực hóa hệ thống học tập trực tuyến X-Tech trên môi trường thực tế, bao gồm cài đặt ứng dụng, triển khai và bảo mật, kiểm thử hệ thống, tài liệu hướng dẫn sử dụng – cài đặt, và phần kết luận, bài học kinh nghiệm. Toàn bộ nội dung được mô tả dựa trên mã nguồn hiện có của dự án (thư mục backend và frontend).
+
+4.1 Cài đặt ứng dụng
+
+4.1.1 Cấu hình phần cứng và phần mềm
+
+Phần cứng khuyến nghị (môi trường triển khai ban đầu)
+- Máy chủ ứng dụng + CSDL (môi trường nhỏ / demo):
+  + CPU: tối thiểu 2 vCPU
+  + RAM: tối thiểu 4 GB
+  + Ổ cứng: 50 GB (ưu tiên SSD, có dư để lưu video, backup)
+- Môi trường phát triển (developer): có thể sử dụng máy cá nhân (laptop) với cấu hình tương đương hoặc cao hơn (8 GB RAM là khuyến nghị).
+
+Phần mềm
+- Hệ điều hành: Linux (Ubuntu Server 20.04+), hoặc macOS / Windows trong môi trường phát triển.
+- Node.js: từ phiên bản 20 trở lên (phù hợp với Next 16 và backend Node).
+- NPM hoặc Yarn để quản lý package.
+- MongoDB:
+  + Có thể sử dụng MongoDB cài đặt local (mongodb://localhost:27017/xtech) hoặc MongoDB Atlas cloud.
+- Công cụ bổ trợ (tuỳ chọn nhưng khuyến nghị):
+  + mongodb-database-tools để dùng mongodump/mongorestore cho backup/restore.
+  + nginx hoặc một reverse proxy tương tự để publish frontend/backend ra Internet.
+  + Certbot/Let’s Encrypt để cấp SSL (nếu triển khai production).
+
+4.1.2 Cài đặt Backend (API X-Tech)
+
+Mã nguồn backend nằm trong thư mục backend, sử dụng Node.js + Express + MongoDB (Mongoose). Các bước cài đặt cơ bản như sau:
+
+(1) Chuẩn bị file cấu hình môi trường
+- Sao chép file mẫu .env.example thành .env:
+  cd backend
+  cp .env.example .env
+
+- Chỉnh sửa nội dung .env:
+  + PORT: cổng chạy API, mặc định 5000.
+  + BASE_URL: URL backend, ví dụ http://localhost:5000 hoặc domain thực tế.
+  + FRONTEND_URL: URL frontend (development dùng http://localhost:3000).
+  + MONGODB_URI: URI kết nối MongoDB, ví dụ:
+    · mongodb://localhost:27017/xtech (local)
+    · hoặc connection string MongoDB Atlas.
+  + JWT_SECRET: chuỗi bí mật dùng ký JWT, bắt buộc thay đổi khi lên production.
+  + Cấu hình thanh toán Momo (nếu tích hợp thật): MOMO_PARTNER_CODE, MOMO_ACCESS_KEY, MOMO_SECRET_KEY, MOMO_ENV.
+
+(2) Cài đặt thư viện
+- Chạy lệnh cài đặt package:
+  cd backend
+  npm install
+
+(3) Khởi động server backend
+- Ở môi trường phát triển:
+  npm run dev
+  Server lắng nghe ở http://localhost:5000, hỗ trợ reload ở mức Node (node --watch).
+
+- Ở môi trường production:
+  npm start
+
+Ứng dụng Express được cấu hình trong src/index.js, kết nối MongoDB qua connectDB(), bật CORS, logging (morgan), parse JSON, và mount các route chính (/api/auth, /api/users, /api/courses, /api/payments, /api/posts, /api/chatbot, …). Endpoint /health dùng để kiểm tra nhanh trạng thái API.
+
+(4) Seed dữ liệu mẫu
+Để hệ thống có sẵn dữ liệu kiểm thử và demo (100 user, 30 khóa học, 50 bài học/bài tập, enrollments, thanh toán, posts, comments, submissions), backend cung cấp script scripts/seed.js:
+  cd backend
+  npm run seed
+
+Script sẽ:
+- Kết nối MongoDB theo biến MONGODB_URI.
+- Xoá dữ liệu cũ trong các collection chính.
+- Tạo:
+  + 1 tài khoản admin: admin@xtech.vn / 123456.
+  + 10 tài khoản giảng viên: instructor1@xtech.vn … instructor10@xtech.vn.
+  + 89 tài khoản học viên: student1@xtech.vn …
+  + 30 khóa học gán cho giảng viên, một phần được publish.
+  + 50 bài học và bài tập quiz với ngân hàng câu hỏi HTML/CSS/JS, MongoDB/Node, React.
+  + Enrollments, payments giả lập, bài viết cộng đồng, bình luận.
+  + Submissions mô phỏng học viên làm bài (tự tính điểm và percentage).
+
+Nhờ đó, sau khi seed xong có thể đăng nhập và thao tác trên hệ thống ngay.
+
+4.1.3 Cài đặt Frontend (Next.js)
+
+Mã nguồn frontend nằm trong thư mục frontend, sử dụng Next.js 16 (App Router), React 19 và Tailwind CSS 4.
+
+(1) Chuẩn bị file môi trường frontend
+- Sao chép file .env.local.example thành .env.local:
+  cd frontend
+  cp .env.local.example .env.local
+
+- Sửa biến:
+  + NEXT_PUBLIC_API_URL: trỏ đến backend, ví dụ:
+    · http://localhost:5000 trong môi trường phát triển.
+    · https://api.xtech.edu.vn trong môi trường production.
+
+(2) Cài đặt thư viện
+  cd frontend
+  npm install
+
+(3) Chạy frontend
+- Development:
+  npm run dev
+  Frontend chạy tại http://localhost:3000.
+
+- Production:
+  npm run build
+  npm start
+
+Ứng dụng chia thành các nhóm trang: (auth) (đăng ký/đăng nhập), courses, dashboard, profile, payments, community, chatbot, admin, sử dụng AuthContext để quản lý trạng thái đăng nhập và lib/api.ts để gọi API backend theo format success/data/message/code.
+
+4.2 Triển khai và bảo mật
+
+4.2.1 Kịch bản triển khai
+
+Tuỳ mục đích (demo nội bộ, staging, production), nhóm đề tài thiết kế kịch bản triển khai như sau:
+
+Môi trường phát triển (local)
+- Backend chạy tại http://localhost:5000.
+- Frontend chạy tại http://localhost:3000.
+- MongoDB local: mongodb://localhost:27017/xtech.
+- CORS cho phép origin http://localhost:3000 (backend đang cấu hình cors({ origin: true, credentials: true }) để linh hoạt cho nhiều origin).
+
+Môi trường production (đề xuất)
+- Tách tối thiểu thành 2 service:
+  + Service API (Node.js + Express), có thể chạy dạng:
+    · Node process quản lý bằng PM2/Systemd, hoặc
+    · Container (Docker) trên cloud (AWS EC2, GCP, DigitalOcean,…).
+  + Service frontend (Next.js):
+    · Được build và chạy next start phía server, publish thông qua nginx reverse proxy.
+
+- MongoDB:
+  + Dùng MongoDB Atlas hoặc một cụm MongoDB riêng, cấu hình bảo mật (user/password, IP whitelist, TLS).
+
+Quy trình deploy điển hình cho production:
+(1) Build frontend:
+  cd frontend
+  npm install
+  npm run build
+
+(2) Cài đặt và cấu hình backend trên server:
+  cd backend
+  npm install
+  cp .env.example .env  (rồi sửa giá trị production)
+  npm start              (hoặc pm2 start src/index.js)
+
+(3) Cấu hình reverse proxy (nginx) để:
+- Route https://xtech.edu.vn → frontend.
+- Route https://api.xtech.edu.vn → backend (port 5000).
+
+(4) Cấu hình domain, DNS, SSL (Let’s Encrypt) cho các host xtech.edu.vn và api.xtech.edu.vn.
+
+4.2.2 Biện pháp bảo mật
+
+Dựa trên code hiện tại (JWT auth, middleware auth, CORS, backup/restore, logging), hệ thống áp dụng một số biện pháp bảo mật sau:
+
+Bảo mật truy cập API
+- Sử dụng JWT:
+  + Khi đăng nhập, backend trả về token (JWT) được ký bằng JWT_SECRET.
+  + Các route yêu cầu login sử dụng middleware auth để:
+    · Đọc header Authorization: Bearer <token>.
+    · Xác thực và giải mã token, gắn thông tin user vào request.
+  + Các route phân quyền (student/instructor/admin) dựa trên trường role của user.
+- Ở môi trường production, JWT_SECRET được đặt giá trị mạnh, khó đoán, không commit vào repo.
+
+Bảo mật CORS và nguồn gọi
+- Backend đang cấu hình cors({ origin: true, credentials: true }) giúp linh hoạt trong dev. Khi lên production, có thể cấu hình cụ thể:
+  + origin: ['https://xtech.edu.vn', 'https://admin.xtech.edu.vn']
+  + credentials: true nếu có dùng cookie.
+- Chặn các origin lạ để giảm nguy cơ tấn công CSRF/CORS.
+
+Bảo mật mật khẩu người dùng
+- Mật khẩu được hash bằng bcryptjs trước khi lưu vào MongoDB.
+- Không lưu plain text, kể cả trong script seed, khi chạy create user Mongoose schema/middleware sẽ tự hash (theo thiết kế model).
+
+Bảo mật dữ liệu và sao lưu
+- Hệ thống cung cấp sẵn cơ chế:
+  + Backup bằng script Node (npm run backup):
+    · Export từng collection ra JSON, lưu vào thư mục backend/backups/YYYY-MM-DD_HH-mm-ss/.
+    · Phù hợp cho backup nhanh, dễ đọc nội dung.
+  + Backup bằng mongodump:
+    · Chạy ./scripts/backup-mongodump.sh để tạo bản dump dạng BSON.
+    · Phù hợp cho khôi phục đầy đủ, đúng kiểu dữ liệu.
+
+- Restore an toàn:
+  + npm run restore và ./scripts/restore-mongodump.sh có bước xác nhận, sắp xếp thứ tự collection để tránh lỗi tham chiếu.
+  + Tài liệu README nhắc rõ việc restore sẽ ghi đè dữ liệu hiện tại, cần backup trước khi restore.
+
+Bảo vệ kết nối và server (khuyến nghị)
+- Dùng HTTPS cho toàn bộ traffic (https://xtech.edu.vn, https://api.xtech.edu.vn).
+- Cấu hình firewall:
+  + Chỉ mở các port cần thiết: 80/443 (nginx), port MongoDB chỉ mở cho internal/private hoặc IP whitelist.
+- Giới hạn quyền hệ điều hành cho user chạy Node/MongoDB.
+- Log request/response bằng morgan để phục vụ audit, truy vết.
+
+Bảo vệ file upload
+- Backend cung cấp route upload (/api/upload/thumbnail, /api/upload/video) dùng multer.
+- File được lưu tại thư mục uploads (public via /uploads).
+- Các biện pháp đề xuất:
+  + Kiểm tra mime-type, kích thước tối đa.
+  + Chỉ cho phép upload từ role instructor hoặc admin.
+  + Đặt thư mục upload bên ngoài thư mục code, phân quyền phù hợp trên server.
+
+4.3 Thử nghiệm hệ thống (Testing)
+
+Hiện tại, trong package.json backend chưa có bộ test tự động hoàn chỉnh (script test mới ở mức placeholder). Tuy nhiên, nhóm đã xây dựng kế hoạch kiểm thử thực tế theo nhiều lớp, dựa trên chức năng đã hiện thực: auth, quản lý khóa học, enrollment, bài học, bài tập, thanh toán, cộng đồng, chatbot, upload, admin.
+
+4.3.1 Kiểm thử đơn vị (Unit test – định hướng)
+
+Phạm vi đề xuất:
+- Kiểm thử các hàm xử lý logic thuần trong controller/service:
+  + Tính điểm bài quiz, tính phần trăm hoàn thành bài học.
+  + Logic phân quyền (role admin/instructor/student).
+  + Xử lý format response chung (res.success, res.error).
+- Sử dụng Jest hoặc Mocha/Chai làm framework test.
+
+Hiện trạng:
+- Do phạm vi đề tài và thời gian, unit test tự động chưa được hiện thực đầy đủ trong repo, nhưng kiến trúc controller/service đã tách biệt, thuận lợi cho việc bổ sung test về sau.
+
+4.3.2 Kiểm thử tích hợp (Integration test)
+
+Mục tiêu:
+- Đảm bảo các API chính hoạt động đúng trên MongoDB thật: kết nối database, xác thực JWT, truy vấn/ghi dữ liệu nhiều collection.
+
+Phương pháp:
+- Sử dụng Postman/Thunder Client hoặc script tự động để gọi chuỗi API:
+  + Đăng ký, đăng nhập.
+  + Lấy danh sách khóa học, chi tiết khóa.
+  + Đăng ký khóa (enrollment), cập nhật progress bài học.
+  + Tạo bài học, bài tập (giảng viên).
+  + Tạo thanh toán mock (/api/payments/course/:courseId) và xác nhận.
+  + Tạo bài viết cộng đồng, bình luận, sử dụng chatbot.
+
+Kết quả:
+- Các luồng cơ bản hoạt động ổn định trên dữ liệu seed:
+  + Người dùng student xem danh sách khóa public, đăng ký và học.
+  + Instructors quản lý nội dung khóa và bài tập.
+  + Admin xem thống kê thanh toán, quản lý user, khoá học.
+
+4.3.3 Kiểm thử chức năng (Functional/System test)
+
+Kịch bản tiêu biểu (thực hiện trên giao diện Next.js):
+
+Ca kiểm thử 1 – Đăng ký, đăng nhập và học thử
+- B1: Mở trang http://localhost:3000, chọn Đăng ký, tạo tài khoản học viên mới.
+- B2: Đăng nhập, chuyển đến Dashboard → thấy danh sách khoá đã đăng ký (ban đầu trống).
+- B3: Vào Courses, chọn một khoá miễn phí hoặc trả phí, ấn Enroll.
+- B4: Vào khoá học, xem danh sách bài học, mở bài, xem nội dung.
+- Kết quả mong đợi: Đăng nhập thành công, token được lưu, API /api/courses, /api/enrollments trả về dữ liệu đúng, tiến độ cập nhật.
+
+Ca kiểm thử 2 – Quản trị khóa học (instructor)
+- B1: Đăng nhập với tài khoản instructor1@xtech.vn.
+- B2: Truy cập khu vực Admin hoặc trang quản lý khoá của giảng viên.
+- B3: Tạo khóa học mới, thêm bài học và bài tập quiz.
+- B4: Logout, đăng nhập với student, kiểm tra có thể xem và làm bài.
+- Kết quả mong đợi: Dữ liệu khóa mới, bài học, bài tập được ghi nhận trong Course, Lesson, Exercise. Student chỉ thấy khoá published.
+
+Ca kiểm thử 3 – Thanh toán và lịch sử
+- B1: Student chọn khoá có giá > 0.
+- B2: Trigger luồng thanh toán (mock hoặc Momo test).
+- B3: Kiểm tra trong Payments (frontend) và /api/payments (backend).
+- Kết quả mong đợi: Payment được tạo với trạng thái pending hoặc completed phù hợp, hiển thị trong lịch sử.
+
+Ca kiểm thử 4 – Cộng đồng và chatbot
+- B1: Học viên vào trang Community, tạo bài viết mới (câu hỏi/kinh nghiệm).
+- B2: User khác bình luận vào bài viết.
+- B3: Vào trang Chatbot, gửi câu hỏi, nhận phản hồi thông qua service Gemini.
+- Kết quả mong đợi: Post/comment hiển thị đúng, chatbot lưu log (ChatbotLog) nếu có.
+
+Đánh giá chung:
+- Các chức năng cốt lõi hoạt động tốt trên dữ liệu thật từ script seed.
+- Giao diện phản hồi tương ứng với cấu trúc API (success, data, message, code), giúp hiển thị thông báo rõ ràng.
+
+4.4 Hướng dẫn sử dụng và cài đặt
+
+Phần này mô tả tài liệu hướng dẫn dành cho hai nhóm đối tượng chính: người dùng cuối (học viên, giảng viên) và quản trị viên hệ thống.
+
+4.4.1 Hướng dẫn cài đặt trên máy chủ mới (admin hệ thống)
+
+(1) Chuẩn bị môi trường
+- Cài đặt Node.js, NPM.
+- Cài đặt MongoDB hoặc tạo cluster trên MongoDB Atlas.
+- Nếu deploy production: cấu hình domain, SSL (Let’s Encrypt), firewall.
+
+(2) Triển khai backend
+- Clone mã nguồn lên server:
+  git clone <repository-url> educationXTech
+  cd educationXTech/backend
+  cp .env.example .env
+  (chỉnh sửa .env cho môi trường production)
+  npm install
+  npm run seed   (tuỳ chọn, chỉ nên chạy lần đầu để tạo dữ liệu mẫu)
+  npm start      (hoặc dùng PM2)
+
+- Kiểm tra:
+  + Gọi GET /health để xác nhận API hoạt động.
+  + Kiểm tra log server không có lỗi kết nối MongoDB.
+
+(3) Triển khai frontend
+- Trong thư mục frontend:
+  cd ../frontend
+  cp .env.local.example .env.local
+  (sửa NEXT_PUBLIC_API_URL trỏ tới backend production)
+  npm install
+  npm run build
+  npm start
+
+- Cấu hình reverse proxy (nginx) trỏ domain frontend vào cổng frontend, backend vào cổng 5000.
+
+(4) Cấu hình backup/restore định kỳ
+- Thiết lập cron job:
+  + Chạy npm run backup mỗi ngày/tuần.
+  + Hoặc chạy ./scripts/backup-mongodump.sh để có bản dump đầy đủ.
+- Lưu trữ bản backup ở nơi an toàn (ổ cứng khác, object storage, v.v.).
+
+4.4.2 Hướng dẫn sử dụng cho người dùng cuối
+
+Đăng ký và đăng nhập
+- Truy cập trang web, chọn Đăng ký để tạo tài khoản mới.
+- Điền họ tên, email, mật khẩu → hệ thống tạo user student mặc định.
+- Sau khi đăng ký, đăng nhập bằng email/mật khẩu đã đăng ký.
+- Trong môi trường demo, có thể sử dụng sẵn:
+  + Admin: admin@xtech.vn / 123456.
+  + Giảng viên: instructor1@xtech.vn / 123456.
+  + Học viên: student1@xtech.vn / 123456.
+
+Tìm kiếm và đăng ký khóa học
+- Vào mục Courses, xem danh sách các khoá học.
+- Sử dụng bộ lọc hoặc thanh tìm kiếm (nếu có).
+- Chọn một khoá → xem chi tiết mô tả, nội dung.
+- Nếu là khoá miễn phí: bấm Enroll để đăng ký ngay. Nếu là khoá tính phí: hệ thống mở luồng thanh toán.
+
+Học bài và làm bài tập
+- Sau khi đăng ký, vào Dashboard hoặc Khóa học của tôi.
+- Chọn khoá → xem danh sách bài học (Lessons) theo thứ tự.
+- Mở từng bài:
+  + Xem nội dung text/video.
+  + Hệ thống ghi nhận tiến độ, thời gian xem (qua API enrollments).
+- Sau khi học xong, làm bài tập (Exercises) dạng quiz:
+  + Trả lời các câu hỏi trắc nghiệm.
+  + Hệ thống chấm điểm tự động, lưu score, percentage vào Submissions.
+
+Xem lịch sử thanh toán
+- Vào mục Payments để xem danh sách giao dịch.
+- Mỗi bản ghi hiển thị khoá học, số tiền, trạng thái thanh toán.
+
+Tham gia cộng đồng
+- Vào Community:
+  + Xem danh sách bài viết (có thể lọc theo khoá học).
+  + Tạo bài viết mới (câu hỏi, chia sẻ kinh nghiệm).
+  + Bình luận vào bài viết của người khác.
+- Tất cả thao tác yêu cầu user đăng nhập (auth).
+
+Sử dụng chatbot hỗ trợ học tập
+- Vào trang Chatbot.
+- Nhập câu hỏi liên quan đến bài học/kỹ năng lập trình.
+- Hệ thống gửi request đến backend (/api/chatbot/chat), sử dụng Gemini API để sinh trả lời.
+- Chatbot lưu log tương tác (nếu cấu hình) để phục vụ phân tích sau này.
+
+4.4.3 Hướng dẫn cho quản trị viên (admin)
+
+Quản lý người dùng
+- Đăng nhập bằng tài khoản admin.
+- Truy cập khu vực Admin → Users.
+- Xem danh sách user, chỉnh sửa thông tin, reset role (student/instructor/admin), khoá tài khoản (nếu có chức năng).
+- API tương ứng: /api/users, /api/users/:id.
+
+Quản lý khoá học và nội dung
+- Quản trị viên có thể:
+  + Tạo/sửa/xoá khoá học.
+  + Quản lý bài học, thứ tự, thời lượng.
+  + Quản lý bài tập (quiz), ngân hàng câu hỏi.
+- Đồng thời, admin có thể hỗ trợ giảng viên trong việc publish/unpublish khoá học.
+
+Theo dõi thanh toán và báo cáo
+- Trang Admin / Payments cho phép:
+  + Xem toàn bộ giao dịch (/api/payments/admin).
+  + Lọc theo trạng thái (pending/completed), theo khoá học, theo user.
+- Các thống kê có thể mở rộng: doanh thu theo thời gian, khoá học bán chạy, v.v.
+
+Sao lưu và khôi phục dữ liệu
+- Thực hiện backup định kỳ bằng:
+  cd backend
+  npm run backup
+
+  hoặc:
+
+  ./scripts/backup-mongodump.sh
+
+- Khi cần restore (ví dụ sau sự cố), làm theo hướng dẫn ở README:
+  + npm run restore -- <tên-thư-mục> (từ backup JSON).
+  + ./scripts/restore-mongodump.sh <tên-thư-mục> (từ mongodump).
+
+4.5 Kết luận chương
+
+Trong Chương 4, hệ thống X-Tech đã được triển khai đầy đủ từ bước cài đặt môi trường, cấu hình backend/frontend, kết nối MongoDB, cho đến các cơ chế bảo mật thiết yếu như JWT auth, hash mật khẩu, CORS, backup/restore dữ liệu và đề xuất bảo vệ server/SSL. Quá trình kiểm thử thông qua các ca test tích hợp và chức năng cho thấy hệ thống đáp ứng tốt các yêu cầu chính: quản lý người dùng, khoá học, bài học, bài tập, thanh toán, cộng đồng và chatbot hỗ trợ học tập. Mặc dù bộ test tự động (unit test) chưa được hoàn thiện, kiến trúc mã nguồn đã sẵn sàng cho việc bổ sung test và mở rộng tính năng. Trong các bước phát triển tiếp theo, nhóm có thể tập trung vào tối ưu hiệu năng, triển khai CI/CD, tự động hóa kiểm thử và nâng cấp hạ tầng (scale-out, caching, queue) để phục vụ số lượng người dùng lớn hơn.

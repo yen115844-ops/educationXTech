@@ -14,9 +14,28 @@ const submissionSchema = new mongoose.Schema(
       ],
       default: [],
     },
+    grading: {
+      type: [
+        {
+          questionIndex: { type: Number, required: true },
+          awardedPoints: { type: Number, default: 0, min: 0 },
+          maxPoints: { type: Number, default: 0, min: 0 },
+          comment: { type: String, trim: true, default: '' },
+          autoGraded: { type: Boolean, default: false },
+          isCorrect: { type: Boolean, default: null },
+        },
+      ],
+      default: [],
+    },
+    reviewNote: { type: String, trim: true, default: '' },
     score: { type: Number, default: 0, min: 0 },
     totalPoints: { type: Number, default: 0, min: 0 },
     percentage: { type: Number, default: 0, min: 0, max: 100 },
+    status: {
+      type: String,
+      enum: ['graded', 'pending_review'],
+      default: 'graded',
+    },
     submittedAt: { type: Date, default: Date.now },
   },
   { timestamps: true }

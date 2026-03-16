@@ -40,7 +40,16 @@ export interface Exercise {
   lessonId?: string | null;
   title: string;
   type: 'quiz' | 'coding' | 'text';
-  questions: Array<{ question: string; options?: string[]; correctAnswer?: unknown; points?: number }>;
+  questions: Array<{
+    question: string;
+    inputType?: 'choice' | 'essay' | 'code_blank';
+    options?: string[];
+    correctAnswer?: unknown;
+    points?: number;
+    caseSensitive?: boolean;
+    codeTemplate?: string;
+    blanks?: Array<{ key: string; answer?: string; placeholder?: string }>;
+  }>;
   deadline?: string | null;
 }
 
@@ -94,9 +103,19 @@ export interface Submission {
   exerciseId: string | Exercise;
   courseId: string;
   answers: Array<{ questionIndex: number; answer: unknown }>;
+  grading?: Array<{
+    questionIndex: number;
+    awardedPoints: number;
+    maxPoints: number;
+    comment?: string;
+    autoGraded?: boolean;
+    isCorrect?: boolean | null;
+  }>;
+  reviewNote?: string;
   score: number;
   totalPoints: number;
   percentage: number;
+  status?: 'graded' | 'pending_review';
   submittedAt: string;
   createdAt?: string;
 }

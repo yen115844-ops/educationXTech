@@ -17,6 +17,13 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+type AnswerValue = string | Record<string, string>;
+
+const normalize = (value: unknown, caseSensitive = false) => {
+  const text = String(value ?? '').trim();
+  return caseSensitive ? text : text.toLowerCase();
+};
+
 export default function ExercisePage() {
   const params = useParams();
   const router = useRouter();
@@ -26,7 +33,7 @@ export default function ExercisePage() {
 
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [submission, setSubmission] = useState<Submission | null>(null);
-  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [answers, setAnswers] = useState<Record<number, AnswerValue>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showResult, setShowResult] = useState(false);
@@ -46,9 +53,13 @@ export default function ExercisePage() {
         setSubmission(sRes.data.submission);
         setShowResult(true);
         // Restore answers
-        const answerMap: Record<number, string> = {};
+        const answerMap: Record<number, AnswerValue> = {};
         for (const a of sRes.data.submission.answers || []) {
-          answerMap[a.questionIndex] = String(a.answer);
+          if (a.answer && typeof a.answer === 'object') {
+            answerMap[a.questionIndex] = a.answer as Record<string, string>;
+          } else {
+            answerMap[a.questionIndex] = String(a.answer ?? '');
+          }
         }
         setAnswers(answerMap);
       }
@@ -56,7 +67,7 @@ export default function ExercisePage() {
     });
   }, [user, exerciseId]);
 
-  const handleSelectAnswer = (questionIndex: number, answer: string) => {
+  const handleSelectAnswer = (questionIndex: number, answer: AnswerValue) => {
     if (showResult) return;
     setAnswers((prev) => ({ ...prev, [questionIndex]: answer }));
   };
@@ -90,7 +101,10 @@ export default function ExercisePage() {
     setAnswers({});
   };
 
-  const answeredCount = Object.keys(answers).length;
+  const answeredCount = Object.values(answers).filter((value) => {
+    if (typeof value === 'string') return value.trim().length > 0;
+    return Object.values(value || {}).some((x) => String(x || '').trim().length > 0);
+  }).length;
   const totalQuestions = exercise?.questions?.length || 0;
 
   if (!user) {
@@ -144,7 +158,7 @@ export default function ExercisePage() {
             <div className="mb-2 flex items-center gap-2">
               <FileText className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                {exercise.type === 'quiz' ? 'Trắc nghiệm' : exercise.type === 'coding' ? 'Lập trình' : 'Tự luận'}
+                {exercise.type === 'quiz' ? 'Trắc nghiệm' : exercise.type === 'coding' ? 'Lập trình điền chữ' : 'Tự luận'}
               </span>
             </div>
             <h1 className="text-xl font-bold text-zinc-900 sm:text-2xl dark:text-zinc-100">
@@ -170,7 +184,7 @@ export default function ExercisePage() {
                   {submission.score}/{submission.totalPoints}
                 </div>
                 <div className="text-xs text-emerald-600 dark:text-emerald-400">
-                  {submission.percentage}% đúng
+                  {submission.status === 'pending_review' ? 'Có câu tự luận, đang chờ chấm thủ công' : `${submission.percentage}% đúng`}
                 </div>
               </div>
             </div>
@@ -198,8 +212,30 @@ export default function ExercisePage() {
       <div className="space-y-6">
         {exercise.questions.map((q, idx) => {
           const userAnswer = answers[idx];
-          const isCorrect = showResult && String(userAnswer) === String(q.correctAnswer);
-          const isWrong = showResult && userAnswer !== undefined && String(userAnswer) !== String(q.correctAnswer);
+          const mode = q.inputType || (exercise.type === 'quiz' ? 'choice' : exercise.type === 'coding' ? 'code_blank' : 'essay');
+
+          let isCorrect = false;
+          let isWrong = false;
+
+          if (showResult && mode === 'choice') {
+            const selected = typeof userAnswer === 'string' ? userAnswer : '';
+            isCorrect = normalize(selected, q.caseSensitive) === normalize(q.correctAnswer, q.caseSensitive);
+            isWrong = selected.trim().length > 0 && !isCorrect;
+          }
+
+          if (showResult && mode === 'code_blank' && userAnswer && typeof userAnswer === 'object') {
+            const blanks = q.blanks || [];
+            if (blanks.length > 0) {
+              let matched = 0;
+              for (const b of blanks) {
+                if (normalize(userAnswer[b.key], q.caseSensitive) === normalize(b.answer, q.caseSensitive) && normalize(b.answer, q.caseSensitive) !== '') {
+                  matched += 1;
+                }
+              }
+              isCorrect = matched === blanks.length;
+              isWrong = matched < blanks.length;
+            }
+          }
 
           return (
             <div
@@ -237,13 +273,13 @@ export default function ExercisePage() {
                 )}
               </div>
 
-              {/* Options */}
-              {q.options && q.options.length > 0 ? (
+              {/* Choice question */}
+              {mode === 'choice' && q.options && q.options.length > 0 ? (
                 <div className="ml-10 space-y-2">
                   {q.options.map((opt, oIdx) => {
                     const optVal = opt;
-                    const isSelected = userAnswer === optVal;
-                    const isCorrectOption = showResult && String(q.correctAnswer) === optVal;
+                    const isSelected = typeof userAnswer === 'string' && userAnswer === optVal;
+                    const isCorrectOption = showResult && normalize(q.correctAnswer, q.caseSensitive) === normalize(optVal, q.caseSensitive);
 
                     return (
                       <button
@@ -289,21 +325,55 @@ export default function ExercisePage() {
                     );
                   })}
                 </div>
+              ) : mode === 'code_blank' ? (
+                <div className="ml-10 space-y-3">
+                  <pre className="overflow-x-auto rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-800 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+                    {(q.codeTemplate || '').split(/(\{\{[^}]+\}\})/g).map((part, pIdx) => {
+                      const matched = part.match(/^\{\{(.+)\}\}$/);
+                      if (!matched) return <span key={pIdx}>{part}</span>;
+                      const key = matched[1];
+                      const value = userAnswer && typeof userAnswer === 'object' ? userAnswer[key] || '' : '';
+                      return (
+                        <input
+                          key={pIdx}
+                          type="text"
+                          disabled={showResult}
+                          value={value}
+                          onChange={(e) => {
+                            const prevObj = userAnswer && typeof userAnswer === 'object' ? userAnswer : {};
+                            handleSelectAnswer(idx, { ...prevObj, [key]: e.target.value });
+                          }}
+                          placeholder={(q.blanks || []).find((b) => b.key === key)?.placeholder || key}
+                          className="mx-1 w-28 rounded border border-zinc-300 bg-white px-2 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-900"
+                        />
+                      );
+                    })}
+                  </pre>
+                  {showResult && (
+                    <div className="rounded-lg bg-zinc-50 p-3 text-xs dark:bg-zinc-800/60">
+                      <p className="font-medium text-zinc-700 dark:text-zinc-200">Đáp án tham chiếu:</p>
+                      <ul className="mt-1 space-y-1 text-zinc-600 dark:text-zinc-300">
+                        {(q.blanks || []).map((b) => (
+                          <li key={b.key}>
+                            {b.key}: {b.answer || '—'}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
               ) : (
-                /* Text input for non-quiz */
                 <div className="ml-10">
                   <textarea
                     rows={3}
                     disabled={showResult}
                     placeholder="Nhập câu trả lời..."
-                    value={userAnswer || ''}
+                    value={typeof userAnswer === 'string' ? userAnswer : ''}
                     onChange={(e) => handleSelectAnswer(idx, e.target.value)}
                     className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:focus:border-emerald-500 dark:focus:ring-emerald-900/30"
                   />
-                  {showResult && q.correctAnswer != null && (
-                    <p className="mt-2 text-sm text-emerald-600 dark:text-emerald-400">
-                      Đáp án đúng: <strong>{String(q.correctAnswer)}</strong>
-                    </p>
+                  {showResult && (
+                    <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">Câu trả lời tự luận đã được ghi nhận.</p>
                   )}
                 </div>
               )}

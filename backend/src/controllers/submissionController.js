@@ -3,6 +3,26 @@ const Exercise = require('../models/Exercise');
 const Course = require('../models/Course');
 const Enrollment = require('../models/Enrollment');
 
+const normalizeAnswer = (value, caseSensitive = false) => {
+  if (value == null) return '';
+  const text = String(value).trim();
+  return caseSensitive ? text : text.toLowerCase();
+};
+
+const getQuestionMode = (exerciseType, question = {}) => {
+  if (question.inputType) return question.inputType;
+  if (exerciseType === 'quiz') return 'choice';
+  if (exerciseType === 'coding') return 'code_blank';
+  return 'essay';
+};
+
+const getTotalPointsFromExercise = (exercise) => {
+  const questions = exercise?.questions || [];
+  return questions.reduce((sum, q) => sum + Math.max(0, Number(q?.points) || 0), 0);
+};
+
+const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
+
 /**
  * POST /api/submissions/:exerciseId
  * Nộp bài tập – tự động chấm điểm quiz
@@ -41,22 +61,97 @@ const submit = async (req, res) => {
       exerciseId,
     });
 
-    // Tự động chấm điểm cho quiz
+    // Tự động chấm điểm cho câu hỏi khách quan; tự luận chuyển sang chờ chấm
     let score = 0;
     let totalPoints = 0;
+    let hasManualQuestion = false;
+    const grading = [];
     const questions = exercise.questions || [];
 
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
       const pts = q.points || 1;
-      totalPoints += pts;
       const userAnswer = answers.find((a) => a.questionIndex === i);
-      if (userAnswer && String(userAnswer.answer) === String(q.correctAnswer)) {
-        score += pts;
+
+      const mode = getQuestionMode(exercise.type, q);
+      if (mode === 'essay') {
+        hasManualQuestion = true;
+        grading.push({
+          questionIndex: i,
+          awardedPoints: 0,
+          maxPoints: pts,
+          comment: '',
+          autoGraded: false,
+          isCorrect: null,
+        });
+        continue;
       }
+
+      totalPoints += pts;
+
+      if (mode === 'choice') {
+        const isCorrect = Boolean(
+          userAnswer && normalizeAnswer(userAnswer.answer, q.caseSensitive) === normalizeAnswer(q.correctAnswer, q.caseSensitive)
+        );
+        const awarded = isCorrect ? pts : 0;
+        score += awarded;
+        grading.push({
+          questionIndex: i,
+          awardedPoints: awarded,
+          maxPoints: pts,
+          comment: '',
+          autoGraded: true,
+          isCorrect,
+        });
+        continue;
+      }
+
+      // code_blank
+      const blanks = Array.isArray(q.blanks) ? q.blanks.filter((b) => b && b.key) : [];
+      if (blanks.length > 0) {
+        const submitted =
+          userAnswer && userAnswer.answer && typeof userAnswer.answer === 'object'
+            ? userAnswer.answer
+            : {};
+        let correctCount = 0;
+        for (const blank of blanks) {
+          const actual = normalizeAnswer(submitted[blank.key], q.caseSensitive);
+          const expected = normalizeAnswer(blank.answer, q.caseSensitive);
+          if (actual !== '' && actual === expected) correctCount += 1;
+        }
+        const awarded = correctCount > 0 ? (pts * correctCount) / blanks.length : 0;
+        score += awarded;
+        grading.push({
+          questionIndex: i,
+          awardedPoints: awarded,
+          maxPoints: pts,
+          comment: '',
+          autoGraded: true,
+          isCorrect: correctCount === blanks.length,
+        });
+        continue;
+      }
+
+      // backward compatibility for old coding questions using correctAnswer
+      const isCorrect = Boolean(
+        userAnswer && normalizeAnswer(userAnswer.answer, q.caseSensitive) === normalizeAnswer(q.correctAnswer, q.caseSensitive)
+      );
+      const awarded = isCorrect ? pts : 0;
+      score += awarded;
+      grading.push({
+        questionIndex: i,
+        awardedPoints: awarded,
+        maxPoints: pts,
+        comment: '',
+        autoGraded: true,
+        isCorrect,
+      });
     }
 
+    score = round2(score);
+
     const percentage = totalPoints > 0 ? Math.round((score / totalPoints) * 100) : 0;
+    const status = hasManualQuestion ? 'pending_review' : 'graded';
 
     if (submission) {
       // Cập nhật lần nộp mới
@@ -64,6 +159,9 @@ const submit = async (req, res) => {
       submission.score = score;
       submission.totalPoints = totalPoints;
       submission.percentage = percentage;
+      submission.status = status;
+      submission.grading = grading;
+      submission.reviewNote = '';
       submission.submittedAt = new Date();
       await submission.save();
     } else {
@@ -75,6 +173,8 @@ const submit = async (req, res) => {
         score,
         totalPoints,
         percentage,
+        status,
+        grading,
       });
     }
 
@@ -201,4 +301,134 @@ const getAllSubmissionsByCourse = async (req, res) => {
   }
 };
 
-module.exports = { submit, getMySubmission, getMySubmissionsByCourse, getAllSubmissionsByExercise, getAllSubmissionsByCourse };
+/**
+ * PATCH /api/submissions/:id/grade
+ * Instructor/Admin chấm bài thủ công
+ */
+const gradeSubmission = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { score, totalPoints, perQuestionGrades, reviewNote } = req.body;
+
+    const submission = await Submission.findById(id)
+      .populate('exerciseId', 'courseId questions')
+      .populate('courseId', 'instructorId');
+    if (!submission) {
+      return res.error('Không tìm thấy bài nộp', 404, 'NOT_FOUND');
+    }
+
+    const course = submission.courseId;
+    const canGrade =
+      req.user.role === 'admin' ||
+      (course && course.instructorId?.toString() === req.user._id.toString());
+    if (!canGrade) {
+      return res.error('Không có quyền chấm bài', 403, 'FORBIDDEN');
+    }
+
+    const questions = submission.exerciseId?.questions || [];
+    let nextScore = 0;
+    let nextTotalPoints = 0;
+    let nextGrading = [];
+
+    if (Array.isArray(perQuestionGrades) && perQuestionGrades.length > 0) {
+      const questionPointMap = new Map();
+      for (let i = 0; i < questions.length; i++) {
+        questionPointMap.set(i, Math.max(0, Number(questions[i]?.points) || 0));
+      }
+
+      for (const item of perQuestionGrades) {
+        const index = Number(item?.questionIndex);
+        if (!Number.isInteger(index) || !questionPointMap.has(index)) {
+          return res.error('Có câu chấm không hợp lệ', 400, 'VALIDATION_ERROR');
+        }
+        const maxPoints = questionPointMap.get(index);
+        const rawAwarded = Number(item?.awardedPoints);
+        if (!Number.isFinite(rawAwarded) || rawAwarded < 0 || rawAwarded > maxPoints) {
+          return res.error(`Điểm câu ${index + 1} không hợp lệ`, 400, 'VALIDATION_ERROR');
+        }
+      }
+
+      for (let i = 0; i < questions.length; i++) {
+        const maxPoints = questionPointMap.get(i);
+        const input = perQuestionGrades.find((x) => Number(x?.questionIndex) === i);
+        const awarded = input ? round2(Number(input.awardedPoints) || 0) : 0;
+        nextTotalPoints += maxPoints;
+        nextScore += awarded;
+        nextGrading.push({
+          questionIndex: i,
+          awardedPoints: awarded,
+          maxPoints,
+          comment: input?.comment ? String(input.comment).trim() : '',
+          autoGraded: false,
+          isCorrect: awarded === maxPoints ? true : awarded === 0 ? false : null,
+        });
+      }
+
+      nextScore = round2(nextScore);
+      nextTotalPoints = round2(nextTotalPoints);
+    } else {
+      if (score === undefined || score === null) {
+        return res.error('Thiếu điểm chấm', 400, 'VALIDATION_ERROR');
+      }
+      const exercisePoints = getTotalPointsFromExercise(submission.exerciseId);
+      const nextTotalPointsRaw =
+        totalPoints !== undefined && totalPoints !== null
+          ? Number(totalPoints)
+          : submission.totalPoints > 0
+            ? Number(submission.totalPoints)
+            : exercisePoints;
+      nextTotalPoints = Math.max(0, Number.isFinite(nextTotalPointsRaw) ? nextTotalPointsRaw : 0);
+
+      const nextScoreRaw = Number(score);
+      if (!Number.isFinite(nextScoreRaw) || nextScoreRaw < 0) {
+        return res.error('Điểm chấm không hợp lệ', 400, 'VALIDATION_ERROR');
+      }
+      if (nextTotalPoints > 0 && nextScoreRaw > nextTotalPoints) {
+        return res.error('Điểm chấm không được lớn hơn tổng điểm', 400, 'VALIDATION_ERROR');
+      }
+      nextScore = round2(nextScoreRaw);
+
+      // backward compatibility: nếu chấm tổng, vẫn lưu 1 bản phân rã đều theo câu
+      const count = questions.length || 1;
+      const avg = round2(nextScore / count);
+      nextGrading = questions.map((q, idx) => ({
+        questionIndex: idx,
+        awardedPoints: avg,
+        maxPoints: Math.max(0, Number(q?.points) || 0),
+        comment: '',
+        autoGraded: false,
+        isCorrect: null,
+      }));
+    }
+
+    const nextPercentage = nextTotalPoints > 0 ? Math.round((nextScore / nextTotalPoints) * 100) : 0;
+
+    submission.score = nextScore;
+    submission.totalPoints = nextTotalPoints;
+    submission.percentage = nextPercentage;
+    submission.status = 'graded';
+    submission.grading = nextGrading;
+    if (reviewNote !== undefined) {
+      submission.reviewNote = String(reviewNote || '').trim();
+    }
+    await submission.save();
+
+    const populated = await submission.populate([
+      { path: 'userId', select: 'name email avatar' },
+      { path: 'exerciseId', select: 'title type questions' },
+    ]);
+
+    res.success({ submission: populated });
+  } catch (err) {
+    res.error(err.message, 500, 'SERVER_ERROR');
+  }
+};
+
+module.exports = {
+  submit,
+  getMySubmission,
+  getMySubmissionsByCourse,
+  getAllSubmissionsByExercise,
+  getAllSubmissionsByCourse,
+  gradeSubmission,
+};
