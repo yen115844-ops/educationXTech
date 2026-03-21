@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { apiPost } from '@/lib/api';
 
 function ReturnContent() {
   const searchParams = useSearchParams();
@@ -11,12 +12,24 @@ function ReturnContent() {
   const orderId = searchParams.get('orderId');
   const message = searchParams.get('message') || '';
   const [mounted, setMounted] = useState(false);
+  const [syncNote, setSyncNote] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   const success = resultCode === '0' || resultCode === '9000';
+
+  useEffect(() => {
+    if (!mounted || !success || !orderId) return;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('xtech_token') : null;
+    if (!token) return;
+    apiPost<{ synced?: boolean }>('/api/payments/momo/sync', { orderId }).then((res) => {
+      if (!res.success && res.message) {
+        setSyncNote(res.message);
+      }
+    });
+  }, [mounted, success, orderId]);
 
   if (!mounted) {
     return (
@@ -38,6 +51,9 @@ function ReturnContent() {
           <p className="mt-2 text-zinc-600 dark:text-zinc-400">
             Khóa học đã được kích hoạt. Bạn có thể vào học ngay.
           </p>
+          {syncNote ? (
+            <p className="mt-3 text-sm text-amber-700 dark:text-amber-400">{syncNote}</p>
+          ) : null}
         </>
       ) : (
         <>

@@ -3,6 +3,22 @@ const Course = require('../models/Course');
 const Enrollment = require('../models/Enrollment');
 const momoService = require('../services/momo');
 
+async function finalizeMomoSuccess(payment) {
+  payment.status = 'completed';
+  payment.paidAt = new Date();
+  await payment.save();
+  await Enrollment.findOneAndUpdate(
+    { userId: payment.userId, courseId: payment.courseId },
+    { $set: { userId: payment.userId, courseId: payment.courseId } },
+    { upsert: true }
+  );
+}
+
+async function finalizeMomoFailed(payment) {
+  payment.status = 'failed';
+  await payment.save();
+}
+
 const create = async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -38,14 +54,14 @@ const create = async (req, res) => {
         });
       }
 
-      const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const publicApiBase = momoService.getPublicApiBaseUrl();
+      const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
       const momoResult = await momoService.createPayment({
         orderId,
         amount,
         orderInfo: `Thanh toán khóa học: ${course.title}`,
         redirectUrl: `${frontendUrl}/payments/return`,
-        ipnUrl: `${baseUrl}/api/payments/momo/ipn`,
+        ipnUrl: `${publicApiBase}/api/payments/momo/ipn`,
         requestId: `req_${Date.now()}_${orderId}`,
         lang: 'vi',
       });
@@ -157,8 +173,9 @@ const listAll = async (req, res) => {
 
 /**
  * IPN (Instant Payment Notification) từ Momo - không dùng auth.
- * Momo gửi POST với body JSON. Xác thực chữ ký, cập nhật Payment và tạo Enrollment nếu thành công.
- * Trả về 204 No Content.
+ * Momo gửi POST JSON. Phải xác thực chữ ký và khớp partnerCode, amount với DB.
+ * Thành công xử lý: HTTP 204 (trong 15s). Chữ ký sai / amount sai: 400 để MoMo biết chưa nhận hợp lệ.
+ * @see https://developers.momo.vn/v3/docs/payment/api/result-handling/notification
  */
 const momoIpn = async (req, res) => {
   try {
@@ -167,20 +184,22 @@ const momoIpn = async (req, res) => {
     const secretKey = config.secretKey;
     const accessKey = config.accessKey;
     if (!secretKey || !accessKey) {
-      res.status(204).end();
+      res.status(503).end();
       return;
     }
 
     const isValid = momoService.verifyIpnSignature(secretKey, body, accessKey);
     if (!isValid) {
-      res.status(204).end();
+      res.status(400).end();
+      return;
+    }
+
+    if (body.partnerCode !== config.partnerCode) {
+      res.status(400).end();
       return;
     }
 
     const orderId = body.orderId;
-    const resultCode = Number(body.resultCode);
-    const success = resultCode === 0 || resultCode === 9000;
-
     const payment = await Payment.findOne({ transactionId: orderId });
     if (!payment) {
       res.status(204).end();
@@ -191,25 +210,80 @@ const momoIpn = async (req, res) => {
       return;
     }
 
+    if (Number(body.amount) !== Number(payment.amount)) {
+      res.status(400).end();
+      return;
+    }
+
+    const success = momoService.isMomoSuccessResultCode(body.resultCode);
     if (success) {
-      payment.status = 'completed';
-      payment.paidAt = new Date();
-      await payment.save();
-      await Enrollment.findOneAndUpdate(
-        { userId: payment.userId, courseId: payment.courseId },
-        { $set: { userId: payment.userId, courseId: payment.courseId } },
-        { upsert: true }
-      );
+      await finalizeMomoSuccess(payment);
     } else {
-      payment.status = 'failed';
-      await payment.save();
+      await finalizeMomoFailed(payment);
     }
 
     res.status(204).end();
   } catch (err) {
     console.error('Momo IPN error:', err);
-    res.status(204).end();
+    res.status(500).end();
   }
 };
 
-module.exports = { create, confirm, myPayments, getById, listAll, momoIpn };
+/**
+ * Sau redirect từ MoMo: tra cứu API query để đồng bộ DB (khi IPN chậm hoặc môi trường không nhận IPN).
+ * Chỉ giao dịch của user đang đăng nhập.
+ */
+const momoSync = async (req, res) => {
+  try {
+    const orderId = req.body?.orderId;
+    if (!orderId || typeof orderId !== 'string') {
+      return res.error('Thiếu orderId', 400, 'VALIDATION_ERROR');
+    }
+
+    const payment = await Payment.findOne({
+      transactionId: orderId,
+      userId: req.user._id,
+      method: 'momo',
+    });
+    if (!payment) {
+      return res.error('Không tìm thấy giao dịch', 404, 'NOT_FOUND');
+    }
+    if (payment.status === 'completed') {
+      const populated = await Payment.findById(payment._id).populate([
+        { path: 'courseId', select: 'title price thumbnail' },
+        { path: 'userId', select: 'name email' },
+      ]);
+      return res.success({ payment: populated, synced: false });
+    }
+    if (payment.status === 'failed') {
+      return res.error('Giao dịch đã thất bại', 400, 'VALIDATION_ERROR');
+    }
+
+    const q = await momoService.queryTransaction(orderId);
+    if (!q.success) {
+      return res.error(q.message || 'Không tra cứu được MoMo', 502, 'BAD_GATEWAY');
+    }
+
+    const data = q.data;
+    const cfg = momoService.getConfig();
+    if (data.partnerCode !== cfg.partnerCode || Number(data.amount) !== Number(payment.amount)) {
+      return res.error('Dữ liệu giao dịch không khớp', 400, 'VALIDATION_ERROR');
+    }
+
+    if (momoService.isMomoSuccessResultCode(data.resultCode)) {
+      await finalizeMomoSuccess(payment);
+    } else {
+      await finalizeMomoFailed(payment);
+    }
+
+    const populated = await Payment.findById(payment._id).populate([
+      { path: 'courseId', select: 'title price thumbnail' },
+      { path: 'userId', select: 'name email' },
+    ]);
+    return res.success({ payment: populated, synced: true });
+  } catch (err) {
+    res.error(err.message, 500, 'SERVER_ERROR');
+  }
+};
+
+module.exports = { create, confirm, myPayments, getById, listAll, momoIpn, momoSync };

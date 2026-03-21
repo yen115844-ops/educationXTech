@@ -6,6 +6,7 @@ const {
   getById,
   listAll,
   momoIpn,
+  momoSync,
 } = require('../controllers/paymentController');
 const { auth, requireRole } = require('../middleware/auth');
 
@@ -17,6 +18,7 @@ router.use(auth);
 
 router.get('/', myPayments);
 router.get('/admin', requireRole('admin'), listAll);
+router.post('/momo/sync', momoSync);
 router.get('/:id', getById);
 router.post('/course/:courseId', create);
 router.post('/:paymentId/confirm', confirm);

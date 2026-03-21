@@ -67,6 +67,7 @@ export default function AdminCourseContentPage() {
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [lessonFormError, setLessonFormError] = useState('');
   const [exerciseFormError, setExerciseFormError] = useState('');
+  const [questionBulkCount, setQuestionBulkCount] = useState(1);
   const [deletingLessonId, setDeletingLessonId] = useState<string | null>(null);
   const [deletingExerciseId, setDeletingExerciseId] = useState<string | null>(null);
 
@@ -176,6 +177,7 @@ export default function AdminCourseContentPage() {
   const openAddExercise = () => {
     setEditingExercise(null);
     setExerciseFormError('');
+    setQuestionBulkCount(1);
     setExerciseForm({ title: '', type: 'quiz', lessonId: '', questions: [] });
     setShowExerciseModal(true);
   };
@@ -222,7 +224,43 @@ export default function AdminCourseContentPage() {
         };
       }),
     });
+    setQuestionBulkCount(1);
     setShowExerciseModal(true);
+  };
+
+  const appendEmptyQuestions = (count: number) => {
+    const n = Math.min(200, Math.max(1, Math.floor(Number(count)) || 1));
+    setExerciseForm((f) => {
+      const type = f.type;
+      const batch: ExerciseQuestionForm[] = [];
+      for (let i = 0; i < n; i++) {
+        if (type === 'quiz') {
+          batch.push({
+            question: '',
+            inputType: 'choice',
+            options: [],
+            correctAnswer: '',
+            points: 1,
+          });
+        } else if (type === 'coding') {
+          batch.push({
+            question: '',
+            inputType: 'code_blank',
+            codeTemplate: '',
+            blanks: [{ key: 'blank_1', answer: '', placeholder: '' }],
+            points: 1,
+            caseSensitive: false,
+          });
+        } else {
+          batch.push({
+            question: '',
+            inputType: 'essay',
+            points: 1,
+          });
+        }
+      }
+      return { ...f, questions: [...(f.questions || []), ...batch] };
+    });
   };
 
   const saveExercise = async () => {
@@ -594,52 +632,36 @@ export default function AdminCourseContentPage() {
             </div>
 
             <div className="mt-4 space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                   {exerciseForm.type === 'quiz' ? 'Câu hỏi trắc nghiệm' : exerciseForm.type === 'coding' ? 'Câu hỏi lập trình điền chữ' : 'Câu hỏi tự luận'}
                 </h4>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setExerciseForm((f) => ({
-                      ...f,
-                      questions: [
-                        ...(f.questions || []),
-                        f.type === 'quiz'
-                          ? {
-                              question: '',
-                              inputType: 'choice',
-                              options: [],
-                              correctAnswer: '',
-                              points: 1,
-                            }
-                          : f.type === 'coding'
-                            ? {
-                                question: '',
-                                inputType: 'code_blank',
-                                codeTemplate: '',
-                                blanks: [{ key: 'blank_1', answer: '', placeholder: '' }],
-                                points: 1,
-                                caseSensitive: false,
-                              }
-                            : {
-                                question: '',
-                                inputType: 'essay',
-                                points: 1,
-                              },
-                      ],
-                    }))
-                  }
-                  className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Thêm câu hỏi
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
+                    <span className="whitespace-nowrap">Số câu thêm</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={200}
+                      value={questionBulkCount}
+                      onChange={(e) => setQuestionBulkCount(Math.max(1, Math.min(200, Number(e.target.value) || 1)))}
+                      className="w-16 rounded-md border border-zinc-300 px-2 py-1 text-center dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => appendEmptyQuestions(questionBulkCount)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Thêm câu hỏi
+                  </button>
+                </div>
               </div>
 
               {(exerciseForm.questions || []).length === 0 ? (
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  Chưa có câu hỏi nào. Bấm &quot;Thêm câu hỏi&quot; để bắt đầu tạo.
+                  Chưa có câu hỏi nào. Nhập số lượng và bấm &quot;Thêm câu hỏi&quot; (tối đa 200 câu mỗi lần).
                 </p>
               ) : (
                 <div className="space-y-4">

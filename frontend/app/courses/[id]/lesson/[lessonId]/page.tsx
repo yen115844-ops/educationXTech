@@ -66,6 +66,79 @@ function getYouTubeVideoId(url: string): string | null {
   return m ? m[1] : null;
 }
 
+function LessonExercisesPanel({
+  courseId,
+  lessonExercises,
+  submissions,
+  isCompleted,
+}: {
+  courseId: string;
+  lessonExercises: Exercise[];
+  submissions: Submission[];
+  isCompleted: boolean;
+}) {
+  if (lessonExercises.length === 0) return null;
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex items-center gap-2 border-b border-zinc-200 p-4 dark:border-zinc-700 sm:p-5">
+        <FileText className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+          Bài tập ({lessonExercises.length})
+        </h2>
+      </div>
+      <ul className="max-h-[min(50vh,22rem)] divide-y divide-zinc-100 overflow-y-auto dark:divide-zinc-800">
+        {lessonExercises.map((ex) => {
+          const sub = submissions.find((s) => {
+            const exerciseId = typeof s.exerciseId === 'object' ? s.exerciseId._id : s.exerciseId;
+            return exerciseId === ex._id;
+          });
+          const canOpenExercise = isCompleted;
+          return (
+            <li key={ex._id}>
+              {canOpenExercise ? (
+                <Link
+                  href={`/courses/${courseId}/exercise/${ex._id}`}
+                  className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/60 sm:px-5 sm:py-4"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-zinc-900 dark:text-zinc-100">{ex.title}</p>
+                    <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400 sm:text-sm">
+                      {ex.type === 'quiz'
+                        ? `Trắc nghiệm · ${ex.questions?.length || 0} câu hỏi`
+                        : ex.type === 'coding'
+                          ? `Lập trình điền chữ · ${ex.questions?.length || 0} câu hỏi`
+                          : 'Tự luận'}
+                    </p>
+                  </div>
+                  {sub ? (
+                    <span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 sm:text-xs">
+                      {sub.score}/{sub.totalPoints} ({sub.percentage}%)
+                    </span>
+                  ) : (
+                    <span className="shrink-0 rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 sm:text-xs">
+                      Chưa làm
+                    </span>
+                  )}
+                </Link>
+              ) : (
+                <div className="flex items-center justify-between gap-3 px-4 py-3 text-zinc-400 dark:text-zinc-500 sm:px-5 sm:py-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="inline-flex items-center gap-1.5 text-sm font-medium">
+                      <Lock className="h-3.5 w-3.5" />
+                      {ex.title}
+                    </p>
+                    <p className="mt-0.5 text-xs">Hoàn thành video để mở bài tập</p>
+                  </div>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 export default function LessonPage() {
   const params = useParams();
   const id = params.id as string;
@@ -114,6 +187,10 @@ export default function LessonPage() {
   const nextLesson = currentIndex >= 0 && currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null;
   const completedSet = new Set(enrollment?.completedLessons || []);
   const isCompleted = lessonId && completedSet.has(lessonId);
+  const lessonExercises = useMemo(
+    () => exercises.filter((ex) => ex.lessonId === lessonId),
+    [exercises, lessonId]
+  );
   const watchStat = useMemo(
     () => enrollment?.lessonWatchStats?.find((item) => item.lessonId === lessonId),
     [enrollment, lessonId]
@@ -329,7 +406,7 @@ export default function LessonPage() {
         </span>
       </nav>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_280px]">
+      <div className="grid gap-8 lg:grid-cols-[1fr_minmax(280px,320px)]">
         {/* Main content */}
         <div className="min-w-0">
           <article className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
@@ -406,6 +483,18 @@ export default function LessonPage() {
               </div>
             )}
 
+            {/* Mobile: bài tập ngay sau video — không phải cuộn xuống cuối trang */}
+            {lessonExercises.length > 0 && (
+              <div className="mt-0 border-b border-zinc-200 dark:border-zinc-700 lg:hidden">
+                <LessonExercisesPanel
+                  courseId={id}
+                  lessonExercises={lessonExercises}
+                  submissions={submissions}
+                  isCompleted={!!isCompleted}
+                />
+              </div>
+            )}
+
             {/* Content */}
             <div className="p-5 sm:p-6 md:p-8">
               {hasContent ? (
@@ -427,71 +516,6 @@ export default function LessonPage() {
               ) : null}
             </div>
           </article>
-
-          {/* Exercises for this lesson */}
-          {(() => {
-            const lessonExercises = exercises.filter((ex) => ex.lessonId === lessonId);
-            if (lessonExercises.length === 0) return null;
-            return (
-              <div className="mt-6 rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-                <div className="flex items-center gap-2 border-b border-zinc-200 p-5 dark:border-zinc-700">
-                  <FileText className="h-5 w-5 text-emerald-600 dark:text-emerald-400" aria-hidden />
-                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-                    Bài tập ({lessonExercises.length})
-                  </h2>
-                </div>
-                <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                  {lessonExercises.map((ex) => {
-                    const sub = submissions.find((s) => {
-                      const exerciseId = typeof s.exerciseId === 'object' ? s.exerciseId._id : s.exerciseId;
-                      return exerciseId === ex._id;
-                    });
-                    const canOpenExercise = isCompleted;
-                    return (
-                      <li key={ex._id}>
-                        {canOpenExercise ? (
-                          <Link
-                            href={`/courses/${id}/exercise/${ex._id}`}
-                            className="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <p className="font-medium text-zinc-900 dark:text-zinc-100">{ex.title}</p>
-                              <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
-                                {ex.type === 'quiz'
-                                  ? `Trắc nghiệm · ${ex.questions?.length || 0} câu hỏi`
-                                  : ex.type === 'coding'
-                                    ? `Lập trình điền chữ · ${ex.questions?.length || 0} câu hỏi`
-                                    : 'Tự luận'}
-                              </p>
-                            </div>
-                            {sub ? (
-                              <span className="shrink-0 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-                                {sub.score}/{sub.totalPoints} ({sub.percentage}%)
-                              </span>
-                            ) : (
-                              <span className="shrink-0 rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                                Chưa làm
-                              </span>
-                            )}
-                          </Link>
-                        ) : (
-                          <div className="flex items-center justify-between gap-4 px-5 py-4 text-zinc-400 dark:text-zinc-500">
-                            <div className="min-w-0 flex-1">
-                              <p className="inline-flex items-center gap-1.5 font-medium">
-                                <Lock className="h-3.5 w-3.5" />
-                                {ex.title}
-                              </p>
-                              <p className="mt-0.5 text-sm">Hoàn thành video để mở bài tập</p>
-                            </div>
-                          </div>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            );
-          })()}
 
           {/* Prev / Next */}
           <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-between">
@@ -533,8 +557,16 @@ export default function LessonPage() {
           </div>
         </div>
 
-        {/* Sidebar - lesson list */}
-        <aside className="lg:sticky lg:top-20 lg:self-start">
+        {/* Sidebar: bài tập bài này + danh sách bài học */}
+        <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+          <div className="hidden lg:block">
+            <LessonExercisesPanel
+              courseId={id}
+              lessonExercises={lessonExercises}
+              submissions={submissions}
+              isCompleted={!!isCompleted}
+            />
+          </div>
           <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 sm:p-5">
             <div className="flex items-center gap-2 border-b border-zinc-200 pb-3 dark:border-zinc-700">
               <PlayCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" aria-hidden />
