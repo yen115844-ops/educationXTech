@@ -423,14 +423,17 @@ export default function CourseSubmissionsPage() {
 
                     {mode === 'code_blank' && answerItem?.answer && typeof answerItem.answer === 'object' ? (
                       <div className="mt-1 rounded bg-zinc-50 p-2 text-xs dark:bg-zinc-800/60">
-                        {(q.blanks || []).map((b) => (
-                          <p key={b.key}>
-                            {b.key}: <span className="font-medium">{String(answerItem.answer?.[b.key] || '—')}</span>
-                            {b.answer !== undefined ? (
-                              <span className="text-zinc-400"> (đáp án: {b.answer || '—'})</span>
-                            ) : null}
-                          </p>
-                        ))}
+                        {(q.blanks || []).map((b) => {
+                          const blankMap = answerItem.answer as Record<string, unknown>;
+                          return (
+                            <p key={b.key}>
+                              {b.key}: <span className="font-medium">{String(blankMap[b.key] ?? '—')}</span>
+                              {b.answer !== undefined ? (
+                                <span className="text-zinc-400"> (đáp án: {b.answer || '—'})</span>
+                              ) : null}
+                            </p>
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="mt-1 whitespace-pre-wrap rounded bg-zinc-50 p-2 text-sm text-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-200">
